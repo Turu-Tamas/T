@@ -11,4 +11,4 @@ dependencies = [
 [tool.uv.sources]
 # Prebuilt wheel of the personal fork (github.com/Turu-Tamas/open_spiel).
 # Rebuild after updating the fork:  see wheels/README.md
-open-spiel = { path = "wheels/open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl" }
+open-spiel = { path = "wheels/open_spiel-1.6.15.whl" }

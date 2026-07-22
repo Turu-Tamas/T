@@ -1,0 +1,16 @@
+from __future__ import annotations
+import pyspiel
+import typing
+__all__: list[str] = ['CrazyEightsGame', 'CrazyEightsState']
+class CrazyEightsGame(pyspiel.Game):
+    def __getstate__(self) -> str:
+        ...
+    def __setstate__(self, arg0: str) -> None:
+        ...
+class CrazyEightsState(pyspiel.State):
+    def __getstate__(self) -> str:
+        ...
+    def __setstate__(self, arg0: str) -> None:
+        ...
+    def get_dealer_deck(self) -> typing.Annotated[list[int], "FixedSize(52)"]:
+        ...

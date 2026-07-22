@@ -1,0 +1,79 @@
+from __future__ import annotations
+import collections.abc
+import pyspiel
+import pyspiel.pokerkit_wrapper
+import typing
+__all__: list[str] = ['RepeatedPokerkitStateStruct']
+class RepeatedPokerkitStateStruct(pyspiel.StateStruct):
+    is_terminal: bool
+    pokerkit_state_struct: pyspiel.pokerkit_wrapper.PokerkitStateStruct
+    def __init__(self) -> None:
+        ...
+    def to_json_base(self) -> ...:
+        ...
+    @property
+    def big_bet_size(self) -> int:
+        ...
+    @big_bet_size.setter
+    def big_bet_size(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def big_blind(self) -> int:
+        ...
+    @big_blind.setter
+    def big_blind(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def bring_in(self) -> int:
+        ...
+    @bring_in.setter
+    def bring_in(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def dealer(self) -> int:
+        ...
+    @dealer.setter
+    def dealer(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def hand_number(self) -> int:
+        ...
+    @hand_number.setter
+    def hand_number(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def hand_returns(self) -> list[list[float]]:
+        ...
+    @hand_returns.setter
+    def hand_returns(self, arg0: collections.abc.Sequence[collections.abc.Sequence[typing.SupportsFloat | typing.SupportsIndex]]) -> None:
+        ...
+    @property
+    def player_to_seat(self) -> dict[int, int]:
+        ...
+    @player_to_seat.setter
+    def player_to_seat(self, arg0: collections.abc.Mapping[typing.SupportsInt | typing.SupportsIndex, typing.SupportsInt | typing.SupportsIndex]) -> None:
+        ...
+    @property
+    def seat_to_player(self) -> dict[int, int]:
+        ...
+    @seat_to_player.setter
+    def seat_to_player(self, arg0: collections.abc.Mapping[typing.SupportsInt | typing.SupportsIndex, typing.SupportsInt | typing.SupportsIndex]) -> None:
+        ...
+    @property
+    def small_bet_size(self) -> int:
+        ...
+    @small_bet_size.setter
+    def small_bet_size(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def small_blind(self) -> int:
+        ...
+    @small_blind.setter
+    def small_blind(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def stacks(self) -> list[int]:
+        ...
+    @stacks.setter
+    def stacks(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
+        ...

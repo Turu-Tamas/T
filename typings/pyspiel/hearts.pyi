@@ -1,0 +1,106 @@
+from __future__ import annotations
+import collections.abc
+import pyspiel
+import typing
+__all__: list[str] = ['HeartsObservationStruct', 'HeartsState', 'HeartsStateStruct']
+class HeartsObservationStruct(pyspiel.ObservationStruct):
+    current_player: str
+    hearts_broken: bool
+    pass_direction: str
+    phase: str
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: str) -> None:
+        ...
+    @property
+    def hands(self) -> list[list[str]]:
+        ...
+    @hands.setter
+    def hands(self, arg0: collections.abc.Sequence[collections.abc.Sequence[str]]) -> None:
+        ...
+    @property
+    def observing_player(self) -> int:
+        ...
+    @observing_player.setter
+    def observing_player(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def passed_cards(self) -> list[list[str]]:
+        ...
+    @passed_cards.setter
+    def passed_cards(self, arg0: collections.abc.Sequence[collections.abc.Sequence[str]]) -> None:
+        ...
+    @property
+    def points(self) -> list[float]:
+        ...
+    @points.setter
+    def points(self, arg0: collections.abc.Sequence[typing.SupportsFloat | typing.SupportsIndex]) -> None:
+        ...
+    @property
+    def received_cards(self) -> list[list[str]]:
+        ...
+    @received_cards.setter
+    def received_cards(self, arg0: collections.abc.Sequence[collections.abc.Sequence[str]]) -> None:
+        ...
+    @property
+    def tricks(self) -> list[list[tuple[str, str]]]:
+        ...
+    @tricks.setter
+    def tricks(self, arg0: collections.abc.Sequence[collections.abc.Sequence[tuple[str, str]]]) -> None:
+        ...
+class HeartsState(pyspiel.State):
+    def __getstate__(self) -> str:
+        ...
+    def __setstate__(self, arg0: str) -> None:
+        ...
+    def hearts_broken(self) -> bool:
+        ...
+    def points(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> int:
+        ...
+    def to_observation_struct(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> pyspiel.ObservationStruct:
+        ...
+    def to_struct(self) -> pyspiel.StateStruct:
+        ...
+class HeartsStateStruct(pyspiel.StateStruct):
+    current_player: str
+    hearts_broken: bool
+    pass_direction: str
+    phase: str
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: str) -> None:
+        ...
+    @property
+    def hands(self) -> list[list[str]]:
+        ...
+    @hands.setter
+    def hands(self, arg0: collections.abc.Sequence[collections.abc.Sequence[str]]) -> None:
+        ...
+    @property
+    def passed_cards(self) -> list[list[str]]:
+        ...
+    @passed_cards.setter
+    def passed_cards(self, arg0: collections.abc.Sequence[collections.abc.Sequence[str]]) -> None:
+        ...
+    @property
+    def points(self) -> list[float]:
+        ...
+    @points.setter
+    def points(self, arg0: collections.abc.Sequence[typing.SupportsFloat | typing.SupportsIndex]) -> None:
+        ...
+    @property
+    def received_cards(self) -> list[list[str]]:
+        ...
+    @received_cards.setter
+    def received_cards(self, arg0: collections.abc.Sequence[collections.abc.Sequence[str]]) -> None:
+        ...
+    @property
+    def tricks(self) -> list[list[tuple[str, str]]]:
+        ...
+    @tricks.setter
+    def tricks(self, arg0: collections.abc.Sequence[collections.abc.Sequence[tuple[str, str]]]) -> None:
+        ...
