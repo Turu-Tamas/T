@@ -6,9 +6,10 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "open-spiel",
+    "pybind11-stubgen>=2.5.5",
 ]
 
 [tool.uv.sources]
 # Prebuilt wheel of the personal fork (github.com/Turu-Tamas/open_spiel).
 # Rebuild after updating the fork:  see wheels/README.md
-open-spiel = { path = "wheels/open_spiel-1.6.15.whl" }
+open-spiel = { path = "wheels/open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl" }

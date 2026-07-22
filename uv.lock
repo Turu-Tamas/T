@@ -85,7 +85,7 @@ dependencies = [
     { name = "scipy" },
 ]
 wheels = [
-    { filename = "open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl", hash = "sha256:8cad8165030ab5f90ce9e5b0be28bbe56357f0193468ea071b897d078ec26763" },
+    { filename = "open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl", hash = "sha256:5ffd3000de75d8c554247f384f97cc727fc68680f3b1ef73a2e470116e282704" },
 ]
 
 [package.metadata]
@@ -106,6 +106,15 @@ requires-dist = [
     { name = "torch", marker = "extra == 'full'" },
 ]
 provides-extras = ["full"]
+
+[[package]]
+name = "pybind11-stubgen"
+version = "2.5.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/81/81900180501a51056572dd01aa852cc2d162478d4676ecebbfaad5cc20d1/pybind11_stubgen-2.5.5.tar.gz", hash = "sha256:758d6d6bbeefc62ad7f78d5e5bbf357ccf6af83cd4504f5f549403f452942708", size = 25031, upload-time = "2025-08-09T01:22:44.403Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/e4/4f2d41881fae547f06ffa4c9748fa8ed13c4db5c830ff268b84175546b3c/pybind11_stubgen-2.5.5-py3-none-any.whl", hash = "sha256:10824cd2fc5cbbee032b8fb39e6f6c08de232deb309bc66d786a6c6e8a4601bd", size = 30210, upload-time = "2025-08-09T01:22:43.135Z" },
+]
 
 [[package]]
 name = "pyyaml"
@@ -190,7 +199,11 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "open-spiel" },
+    { name = "pybind11-stubgen" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "open-spiel", path = "wheels/open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl" }]
+requires-dist = [
+    { name = "open-spiel", path = "wheels/open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl" },
+    { name = "pybind11-stubgen", specifier = ">=2.5.5" },
+]
