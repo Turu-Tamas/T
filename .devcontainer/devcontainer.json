@@ -1,0 +1,27 @@
+{
+    "name": "T Development Container",
+    "build": {
+        "dockerfile": "../Dockerfile"
+    },
+
+    "workspaceFolder": "/workspace",
+
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind"
+    ],
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter"
+            ],
+            "python.defaultInterpreterPath": "/opt/venv/bin/python"
+        }
+    },
+
+    "forwardPorts": [
+        8888
+    ]
+}
