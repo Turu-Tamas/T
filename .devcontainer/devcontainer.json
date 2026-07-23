@@ -3,11 +3,17 @@
     "build": {
         "dockerfile": "../Dockerfile"
     },
+    // "image": "tttttttttttttttttttt/t:latest",
 
     "workspaceFolder": "/workspace",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {},
+        "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    },
 
     "mounts": [
-        "source=${localWorkspaceFolder},target=/workspace,type=bind"
+        "source=${localWorkspaceFolder},target=/workspace,type=bind",
+        "source=claude-code-config,target=/root/.claude,type=volume"
     ],
 
     "customizations": {
@@ -17,7 +23,9 @@
                 "ms-python.vscode-pylance",
                 "ms-toolsai.jupyter"
             ],
-            "python.defaultInterpreterPath": "/opt/venv/bin/python"
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/venv/bin/python"
+            }
         }
     },
 
