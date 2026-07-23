@@ -201,6 +201,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cloudpickle"
+version = "3.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/fb/576f067976d320f5f0114a8d9fa1215425441bb35627b1993e5afd8111e5/cloudpickle-3.1.2.tar.gz", hash = "sha256:7fda9eb655c9c230dab534f1983763de5835249750e85fbcef43aaa30a9a2414", size = 22330, upload-time = "2025-11-03T09:25:26.604Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl", hash = "sha256:9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a", size = 22228, upload-time = "2025-11-03T09:25:25.534Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -466,6 +475,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848", size = 196711, upload-time = "2026-06-02T14:34:07.794Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2", size = 65455, upload-time = "2026-06-02T14:34:06.319Z" },
+]
+
+[[package]]
+name = "importlib-metadata"
+version = "9.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "zipp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/01/15bb152d77b21318514a96f43af312635eb2500c96b55398d020c93d86ea/importlib_metadata-9.0.0.tar.gz", hash = "sha256:a4f57ab599e6a2e3016d7595cfd72eb4661a5106e787a95bcc90c7105b831efc", size = 56405, upload-time = "2026-03-20T06:42:56.999Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/3d/2d244233ac4f76e38533cfcb2991c9eb4c7bf688ae0a036d30725b8faafe/importlib_metadata-9.0.0-py3-none-any.whl", hash = "sha256:2d21d1cc5a017bd0559e36150c21c830ab1dc304dedd1b7ea85d20f45ef3edd7", size = 27789, upload-time = "2026-03-20T06:42:55.665Z" },
 ]
 
 [[package]]
@@ -1407,6 +1428,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyvers"
+version = "0.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/21/9daf8da2793d112a04b46ac33ab9046c91b0af8292cd93b3cfdd07ff7169/pyvers-0.2.3.tar.gz", hash = "sha256:c4b81c3a033963245e124cdecb052783c9c4cea3bb08c051833af1c44faa6283", size = 12347, upload-time = "2026-07-09T13:58:07.046Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/8d/63787e8feda59d981ebc953b6581ccab3c97cf7bfe0a6a407c07b50fc86c/pyvers-0.2.3-py3-none-any.whl", hash = "sha256:6f5b5612f2f4bd08caa49baa70fc5f875fc7da701a5385c13e244eea6b8114dd", size = 11757, upload-time = "2026-07-09T13:58:06.078Z" },
+]
+
+[[package]]
 name = "pywinpty"
 version = "3.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1646,6 +1676,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "open-spiel" },
+    { name = "tensordict" },
     { name = "torch" },
 ]
 
@@ -1656,7 +1687,31 @@ requires-dist = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "open-spiel", path = "wheels/open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl" },
+    { name = "tensordict" },
     { name = "torch" },
+]
+
+[[package]]
+name = "tensordict"
+version = "0.13.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "importlib-metadata" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pyvers" },
+    { name = "torch" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/66/f787025fa49f842ec9c60229cb093b31e7071b406e428f831b58266b71ef/tensordict-0.13.0-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:9eddecc4b500f7f93c52815266afd295c081a2fb0e7847e387bee4398a841518", size = 911688, upload-time = "2026-06-04T14:47:03.949Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/b7/08776521a01c0f90b509f1475b152ecfcae3355ac97373c2d6c7a9f8d1d2/tensordict-0.13.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:faac41677a13c442733483459564cf16668b9d01c33af36dbee5142a34100ca3", size = 555747, upload-time = "2026-06-04T14:47:05.632Z" },
+    { url = "https://files.pythonhosted.org/packages/23/25/d86e45b85c2f92a84efa0d10cb5b889d457f7a780dc05ebedda21931d551/tensordict-0.13.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:f0f9130ae72c53a174cc7ea77d1bc51c573f3aa51e3ebb1f0ec1568cc92c0e05", size = 559520, upload-time = "2026-06-04T14:47:06.933Z" },
+    { url = "https://files.pythonhosted.org/packages/06/e0/2d0934dc0edcf8823f1732cde7afb7e796121f1b33099d7f27047c2c9993/tensordict-0.13.0-cp313-cp313-win_amd64.whl", hash = "sha256:1ba477fae50bb6edf7ba1c67ff448fd778cece249eb6aceaff669e58e9ad07c8", size = 608618, upload-time = "2026-06-04T14:47:08.359Z" },
+    { url = "https://files.pythonhosted.org/packages/05/93/7b65ea5352c02d0c6b10c818b45af40636fc7069079c9ff87b7ff5d73980/tensordict-0.13.0-cp313-cp313t-macosx_14_0_arm64.whl", hash = "sha256:d161f1aed655f6ad8909d15bb1acf84f378b571ac2052f2760bff3f8aeb11a58", size = 917114, upload-time = "2026-06-04T14:47:09.95Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/26/f29d7543db47c21eddf87c95ccfeb059e508250d8a8689e7c8842bcd31a4/tensordict-0.13.0-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:731215d5a4e63fe834cc082de7555e1d5207b7be26d83f53906963ec36bf8a62", size = 557189, upload-time = "2026-06-04T14:47:11.588Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/91/8847964100950bee174f4a6dd5839fa985a95b8e9eb96a3f012b1c6bee66/tensordict-0.13.0-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:6121b672ae021739f56a5e03193b2650155667f97c5121b7948a3b1ff047ec2d", size = 561063, upload-time = "2026-06-04T14:47:13.049Z" },
+    { url = "https://files.pythonhosted.org/packages/81/51/d9053993fc45b613522dc6425a04bed7947fecd65fed8f0a35a884e2f4af/tensordict-0.13.0-cp313-cp313t-win_amd64.whl", hash = "sha256:fd2f54af8293bd8d0472fe49c6940740a96366c02b4dba7d9838dde9ccc2e654", size = 619464, upload-time = "2026-06-04T14:47:14.457Z" },
 ]
 
 [[package]]
@@ -1817,4 +1872,13 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2c/41/aa4bf9664e4cda14c3b39865b12251e8e7d239f4cd0e3cc1b6c2ccde25c1/websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98", size = 70576, upload-time = "2025-10-07T21:16:36.495Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef", size = 82616, upload-time = "2025-10-07T21:16:34.951Z" },
+]
+
+[[package]]
+name = "zipp"
+version = "4.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/d8/eab98a517c14134c0b2eb4e2387bc5f457334293ec5d2dd3857ec2966802/zipp-4.1.0.tar.gz", hash = "sha256:4cb57381f544315db7688e976e922a2b18cdb513d21cc194eb42232ba2a3e602", size = 26214, upload-time = "2026-05-18T20:08:57.967Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/13/547360d81e6d88d58492968ffda9f9542854f11310ee556fef14260cc886/zipp-4.1.0-py3-none-any.whl", hash = "sha256:25ad4e16390cd314347dd8f1de67a2ac538ae658ed4ab9db16029c07c188e97f", size = 10238, upload-time = "2026-05-18T20:08:57.045Z" },
 ]

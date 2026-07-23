@@ -10,7 +10,8 @@ dependencies = [
     "numpy",
     "ipykernel",
     "matplotlib",
-    "torch"
+    "torch",
+    "tensordict",
 ]
 
 [tool.uv.sources]
