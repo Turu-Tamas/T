@@ -51,20 +51,14 @@ class ObservationTensor(TensorClass):
     last_trick: torch.Tensor  # onehot per player, 4x43 (0..41 cards, 42 = none)
 
 
-def observation_tensor_from_state(
-    state: pyspiel.State, player: int | None = None
+def observation_tensor_to_tensorclass(
+    observation: torch.Tensor
 ) -> ObservationTensor:
-    state = cast(HungarianTarokkState, state)
-    flat = torch.tensor(
-        state.observation_tensor() if player is None else state.observation_tensor(player),
-        dtype=torch.float32,
-    )
-
     pos = 0
 
     def take(size: int) -> torch.Tensor:
         nonlocal pos
-        chunk = flat[pos : pos + size]
+        chunk = observation[pos : pos + size]
         pos += size
         return chunk
 
@@ -102,7 +96,7 @@ def observation_tensor_from_state(
         .view(_NUM_PLAYERS, _NUM_CARDS + 1)
     )
 
-    assert pos == flat.numel()
+    assert pos == observation.numel()
 
     return ObservationTensor(
         phase=phase,
