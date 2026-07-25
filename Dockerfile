@@ -51,9 +51,6 @@ RUN --mount=type=cache,target=/ccache \
     python -m build --wheel --no-isolation \
     && ccache --show-stats
 
-
-FROM python:3.13-slim AS runtime
-
 WORKDIR /workspace
 
 RUN pip install uv
@@ -62,9 +59,8 @@ RUN pip install uv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy
 COPY pyproject.toml .python-version ./
-COPY --from=open_spiel /open_spiel/dist/*.whl wheels/
+RUN mkdir -p wheels/ && cp /open_spiel/dist/*.whl wheels/
 # Persist uv's download/build cache so unchanged dependencies aren't refetched
 # or rebuilt on subsequent image builds.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync
-COPY --from=open_spiel /open_spiel /open_spiel
