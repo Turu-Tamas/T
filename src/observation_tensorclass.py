@@ -10,7 +10,6 @@ _NUM_TAROKKS = 22
 _NUM_BIDS = 4
 _NUM_BONUSES = 6
 
-
 class ObservationTensor(TensorClass):
     phase: torch.Tensor  # onehot, 6
     current_player: torch.Tensor  # onehot, 4 (all-zero if nobody's turn)
