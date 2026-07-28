@@ -689,7 +689,7 @@ class Game:
         ...
 class GameInfo:
     @typing.overload
-    def __init__(self, num_distinct_actions: typing.SupportsInt | typing.SupportsIndex, max_chance_outcomes: typing.SupportsInt | typing.SupportsIndex, num_players: typing.SupportsInt | typing.SupportsIndex, min_utility: typing.SupportsFloat | typing.SupportsIndex, max_utility: typing.SupportsFloat | typing.SupportsIndex, utility_sum: typing.SupportsFloat | typing.SupportsIndex | None = None, max_game_length: typing.SupportsInt | typing.SupportsIndex = ...) -> None:
+    def __init__(self, num_distinct_actions: typing.SupportsInt | typing.SupportsIndex, max_chance_outcomes: typing.SupportsInt | typing.SupportsIndex, num_players: typing.SupportsInt | typing.SupportsIndex, min_utility: typing.SupportsFloat | typing.SupportsIndex, max_utility: typing.SupportsFloat | typing.SupportsIndex, utility_sum: typing.SupportsFloat | typing.SupportsIndex | None = None, max_game_length: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     @typing.overload
     def __init__(self, arg0: GameInfo) -> None:
@@ -1090,7 +1090,7 @@ class HeartsGame(Game):
     def __setstate__(self, arg0: str) -> None:
         ...
 class IIGObservationType:
-    def __init__(self, public_info: bool = True, perfect_recall: bool = ..., private_info: PrivateInfoType = ...) -> None:
+    def __init__(self, public_info: bool = True, perfect_recall: bool, private_info: PrivateInfoType = ...) -> None:
         ...
     @property
     def perfect_recall(self) -> bool:
