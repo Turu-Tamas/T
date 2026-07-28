@@ -13,8 +13,16 @@
 
     "mounts": [
         "source=${localWorkspaceFolder},target=/workspace,type=bind",
-        "source=claude-code-config,target=/root/.claude,type=volume"
+        "source=${localWorkspaceFolder}/../open_spiel,target=/open_spiel,type=bind",
+        "source=claude-code-config,target=/root/.claude,type=volume",
+        "source=open-spiel-ccache,target=/ccache,type=volume",
+        "source=open-spiel-download-cache,target=/download_cache,type=volume"
     ],
+
+    // Build the C++ deps and the venv (including the open-spiel wheel, built
+    // from the /open_spiel mount above) once the mounts are live. Not part of
+    // the Dockerfile itself: at image-build time /open_spiel doesn't exist yet.
+    "postCreateCommand": "cd /open_spiel && ./install.sh && cd /workspace && uv sync",
 
     "customizations": {
         "vscode": {

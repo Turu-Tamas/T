@@ -13,12 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m pip install --upgrade build setuptools wheel cmake ninja
 
 # --- Incremental-build configuration ----------------------------------------
-# A fresh `git checkout` rewrites every source file's mtime to "now", so a
-# reused CMake build tree would recompile everything regardless. ccache sidesteps
-# that by keying cached object files on the *preprocessed source content*: when
-# you move to a newer commit, only the translation units that actually changed
-# are recompiled; the rest are served from the cache. CMake reads the launcher
-# vars below the first time a build tree is configured.
+# /open_spiel is not baked into the image: it's bind-mounted at container
+# runtime from a sibling checkout of the open_spiel fork on the host (see
+# .devcontainer/devcontainer.json), so there's a single source of truth instead
+# of a separate host clone plus an image-baked clone that can drift apart.
+# ccache keys cached object files on *preprocessed source content*, so edits to
+# the mounted checkout only recompile the translation units that actually
+# changed; the rest are served from the cache. CMake reads the launcher vars
+# below the first time a build tree is configured.
 ENV CC=clang \
     CXX=clang++ \
     CMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -28,28 +30,7 @@ ENV CC=clang \
     CCACHE_MAXSIZE=5G \
     CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime,time_macros \
     DOWNLOAD_CACHE_DIR=/download_cache
-
-ARG OPEN_SPIEL_REF=82c4d12f8e8354e8ef99cd82a55df10260090feb
-RUN git clone https://github.com/Turu-Tamas/open_spiel.git /open_spiel \
-    && cd /open_spiel \
-    && git checkout ${OPEN_SPIEL_REF}
-
-WORKDIR /open_spiel
-
-# Fetch the C++ dependencies (abseil, pybind11, dds, ...). install.sh stores them
-# under $DOWNLOAD_CACHE_DIR; a cache mount there avoids re-downloading them every
-# time OPEN_SPIEL_REF changes.
-RUN --mount=type=cache,target=/download_cache,sharing=locked \
-    ./install.sh
-
-# Build the wheel. --no-isolation keeps the build in the stable /open_spiel/build
-# tree so ccache sees identical compile command lines (and thus cache hits)
-# across commits; without it, `build` compiles in a random temp dir and every
-# object misses the cache. The /ccache mount is where the reusable object cache
-# lives; dist/ is not mounted, so the produced wheel stays in the image layer.
-RUN --mount=type=cache,target=/ccache \
-    python -m build --wheel --no-isolation \
-    && ccache --show-stats
+RUN mkdir -p /ccache /open_spiel
 
 WORKDIR /workspace
 
@@ -59,8 +40,8 @@ RUN pip install uv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy
 COPY pyproject.toml .python-version ./
-RUN mkdir -p wheels/ && cp /open_spiel/dist/*.whl wheels/
-# Persist uv's download/build cache so unchanged dependencies aren't refetched
-# or rebuilt on subsequent image builds.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync
+
+# open_spiel isn't built here: at image-build time /open_spiel is empty (the
+# bind mount only exists once the container starts), so install.sh and
+# `uv sync` run from the devcontainer's postCreateCommand instead. This layer
+# just makes sure the rest of the toolchain is ready to go by then.

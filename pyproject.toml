@@ -12,9 +12,21 @@ dependencies = [
     "matplotlib",
     "torch",
     "tensordict",
+    # Build-time deps for open-spiel's setup.py (CMake/pybind11 extension).
+    # Needed in this venv because open-spiel is built with no-build-isolation
+    # below, so its build backend runs against /opt/venv directly.
+    "setuptools>=45",
+    "wheel",
 ]
 
 [tool.uv.sources]
-# Prebuilt wheel of the personal fork (github.com/Turu-Tamas/open_spiel).
-# Rebuild after updating the fork:  see wheels/README.md
-open-spiel = { path = "wheels/open_spiel-1.6.15-cp313-cp313-linux_x86_64.whl" }
+# Built from the sibling open_spiel fork checkout, bind-mounted at /open_spiel
+# (see .devcontainer/devcontainer.json). After editing the fork, run
+# `uv sync --reinstall-package open-spiel` to rebuild and reinstall it.
+open-spiel = { path = "/open_spiel" }
+
+[tool.uv]
+# Build in this venv instead of a throwaway isolated env, so CC/CXX/ccache
+# (set in the Dockerfile) are used and the build lands in a stable
+# /open_spiel/build tree that ccache can hit across rebuilds.
+no-build-isolation-package = ["open-spiel"]
