@@ -49,9 +49,12 @@ class ObservationTensor(TensorClass):
     trick_leader: torch.Tensor  # onehot, 4
     last_trick: torch.Tensor  # onehot per player, 4x43 (0..41 cards, 42 = none)
 
+    action_mask: torch.Tensor # multihot, NUM_DISTINCT_ACTIONS
 
-def observation_tensor_to_tensorclass(
-    observation: torch.Tensor
+
+def build_observation_tensorclass(
+    observation: torch.Tensor,
+    legal_actions: torch.Tensor
 ) -> ObservationTensor:
     pos = 0
 
@@ -95,6 +98,9 @@ def observation_tensor_to_tensorclass(
         .view(_NUM_PLAYERS, _NUM_CARDS + 1)
     )
 
+    action_mask = torch.zeros([pyspiel.hungarian_tarokk.NUM_DISTINCT_ACTIONS], dtype=torch.bool)
+    action_mask[legal_actions] = True
+
     assert pos == observation.numel()
 
     return ObservationTensor(
@@ -117,4 +123,5 @@ def observation_tensor_to_tensorclass(
         current_trick=current_trick,
         trick_leader=trick_leader,
         last_trick=last_trick,
+        action_mask=action_mask,
     )

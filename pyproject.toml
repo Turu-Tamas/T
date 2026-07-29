@@ -30,3 +30,9 @@ open-spiel = { path = "/open_spiel" }
 # (set in the Dockerfile) are used and the build lands in a stable
 # /open_spiel/build tree that ccache can hit across rebuilds.
 no-build-isolation-package = ["open-spiel"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

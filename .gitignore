@@ -1,3 +1,5 @@
 wheels/
 .claude/
 __pycache__
+*egg-info
+.vscode
