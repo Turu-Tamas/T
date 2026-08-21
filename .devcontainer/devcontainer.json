@@ -1,9 +1,10 @@
 {
     "name": "T Development Container",
-    "build": {
-        "dockerfile": "../Dockerfile"
-    },
-    // "image": "tttttttttttttttttttt/t:latest",
+    "image": "ghcr.io/turu-tamas/t:latest",
+    // To build and push a new image after Dockerfile/dependency changes:
+    //   docker build -t ghcr.io/turu-tamas/t:latest -f Dockerfile . && docker push ghcr.io/turu-tamas/t:latest
+    // Or build locally instead of pulling:
+    // "build": { "dockerfile": "../Dockerfile" },
 
     "workspaceFolder": "/workspace",
     "features": {
@@ -12,17 +13,8 @@
     },
 
     "mounts": [
-        "source=${localWorkspaceFolder},target=/workspace,type=bind",
-        "source=${localWorkspaceFolder}/../open_spiel,target=/open_spiel,type=bind",
-        "source=claude-code-config,target=/root/.claude,type=volume",
-        "source=open-spiel-ccache,target=/ccache,type=volume",
-        "source=open-spiel-download-cache,target=/download_cache,type=volume"
+        "source=${localWorkspaceFolder},target=/workspace,type=bind"
     ],
-
-    // Build the C++ deps and the venv (including the open-spiel wheel, built
-    // from the /open_spiel mount above) once the mounts are live. Not part of
-    // the Dockerfile itself: at image-build time /open_spiel doesn't exist yet.
-    "postCreateCommand": "cd /open_spiel && ./install.sh && cd /workspace && uv sync && uv pip install --python /opt/venv/bin/python -e .",
 
     "customizations": {
         "vscode": {

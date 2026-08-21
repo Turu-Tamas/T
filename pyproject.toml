@@ -20,9 +20,8 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-# Built from the sibling open_spiel fork checkout, bind-mounted at /open_spiel
-# (see .devcontainer/devcontainer.json). After editing the fork, run
-# `uv sync --reinstall-package open-spiel` to rebuild and reinstall it.
+# Built from our open_spiel fork, cloned to /open_spiel and built at image
+# build time (see Dockerfile). To pick up fork changes, rebuild the image.
 open-spiel = { path = "/open_spiel" }
 
 [tool.uv]
