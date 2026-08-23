@@ -17,6 +17,11 @@ dependencies = [
     # below, so its build backend runs against /opt/venv directly.
     "setuptools>=45",
     "wheel",
+    "ml-collections>=1.1.0",
+    "scipy>=1.18.0",
+    "attrs>=26.1.0",
+    "networkx>=3.6.1",
+    "dm-tree>=0.1.10",
 ]
 
 [tool.uv.sources]
@@ -35,3 +40,8 @@ where = ["src"]
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[dependency-groups]
+dev = [
+    "pybind11-stubgen>=2.5.5",
+]
