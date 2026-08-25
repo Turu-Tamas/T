@@ -2,30 +2,59 @@ from __future__ import annotations
 import collections.abc
 import pyspiel
 import typing
-__all__: list[str] = ['AnnouncementActions', 'BiddingActions', 'Card', 'HungarianTarokkBid', 'HungarianTarokkBonus', 'HungarianTarokkBonusAnnouncement', 'HungarianTarokkCalledCard', 'HungarianTarokkGame', 'HungarianTarokkObservationStruct', 'HungarianTarokkPhase', 'HungarianTarokkSide', 'HungarianTarokkState', 'NUM_CARDS', 'NUM_DISTINCT_ACTIONS', 'NUM_TAROKKS', 'Suit', 'SuitRank', 'TalonActions']
+__all__: list[str] = ['AnnouncementActions', 'BiddingActions', 'Card', 'HungarianTarokkAnnouncementState', 'HungarianTarokkBid', 'HungarianTarokkBiddingState', 'HungarianTarokkBonus', 'HungarianTarokkBonusAnnouncement', 'HungarianTarokkCall', 'HungarianTarokkCalledCard', 'HungarianTarokkGame', 'HungarianTarokkObservationStruct', 'HungarianTarokkPhase', 'HungarianTarokkSide', 'HungarianTarokkState', 'HungarianTarokkTrick', 'NUM_CARDS', 'NUM_DISTINCT_ACTIONS', 'NUM_TAROKKS', 'TalonActions']
 class AnnouncementActions:
     ANNOUNCE_BONUS_BASE: typing.ClassVar[int] = 114
     CALL_ACTION_BASE: typing.ClassVar[int] = 92
     DECLARE_EIGHT: typing.ClassVar[int] = 148
     DECLARE_NINE: typing.ClassVar[int] = 149
     GAME_KONTRA_ITEM: typing.ClassVar[int] = 0
+    HIRSKONTRA_GAME: typing.ClassVar[int] = 123
     KONTRA_ACTION_BASE: typing.ClassVar[int] = 120
-    MAX_KONTRA: typing.ClassVar[int] = 4
+    KONTRA_GAME: typing.ClassVar[int] = 120
+    LAST_ACTION: typing.ClassVar[int] = 150
     NUM_KONTRA_ACTIONS: typing.ClassVar[int] = 28
+    NUM_KONTRA_GROUPS: typing.ClassVar[int] = 7
     NUM_KONTRA_ITEMS: typing.ClassVar[int] = 13
-    NUM_KONTRA_TARGETS: typing.ClassVar[int] = 7
+    NUM_KONTRA_LEVELS: typing.ClassVar[int] = 4
     PASS: typing.ClassVar[int] = 150
+    REKONTRA_GAME: typing.ClassVar[int] = 121
+    SZUBKONTRA_GAME: typing.ClassVar[int] = 122
     @staticmethod
     def announce_bonus_action(bonus: HungarianTarokkBonus) -> int:
+        ...
+    @staticmethod
+    def bonus_for_kontra_item(item: typing.SupportsInt | typing.SupportsIndex) -> HungarianTarokkBonus:
         ...
     @staticmethod
     def call_action_for_tarokk(tarokk: Card) -> int:
         ...
     @staticmethod
-    def kontra_claim_action(bonus: HungarianTarokkBonus, level: typing.SupportsInt | typing.SupportsIndex) -> int:
+    def is_announce_bonus_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
+        ...
+    @staticmethod
+    def is_call_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
+        ...
+    @staticmethod
+    def is_kontra_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
+        ...
+    @staticmethod
+    def is_tarokk_declare_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
+        ...
+    @staticmethod
+    def kontra_bonus_action(bonus: HungarianTarokkBonus, level: typing.SupportsInt | typing.SupportsIndex) -> int:
         ...
     @staticmethod
     def kontra_game_action(level: typing.SupportsInt | typing.SupportsIndex) -> int:
+        ...
+    @staticmethod
+    def kontra_item_for_bonus(bonus: HungarianTarokkBonus, side: HungarianTarokkSide) -> int:
+        ...
+    @staticmethod
+    def side_for_kontra_item(item: typing.SupportsInt | typing.SupportsIndex) -> HungarianTarokkSide:
+        ...
+    @staticmethod
+    def tarokk_for_call_action(action: typing.SupportsInt | typing.SupportsIndex) -> Card:
         ...
 class BiddingActions:
     ACTION_BASE: typing.ClassVar[int] = 42
@@ -37,15 +66,18 @@ class BiddingActions:
     NUM_ACTIONS: typing.ClassVar[int] = 6
     PASS: typing.ClassVar[int] = 42
     @staticmethod
+    def action_to_bid(action: typing.SupportsInt | typing.SupportsIndex) -> HungarianTarokkBid:
+        ...
+    @staticmethod
     def bid_to_action(bid: HungarianTarokkBid) -> int:
         ...
+    @staticmethod
+    def is_bid_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
+        ...
+    @staticmethod
+    def is_bidding_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
+        ...
 class Card:
-    @staticmethod
-    def new_suit(suit: Suit, rank: SuitRank) -> Card:
-        ...
-    @staticmethod
-    def new_tarokk(numeral: typing.SupportsInt | typing.SupportsIndex) -> Card:
-        ...
     def __eq__(self, arg0: Card) -> bool:
         ...
     def __hash__(self) -> int:
@@ -71,6 +103,33 @@ class Card:
         ...
     @index.setter
     def index(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+class HungarianTarokkAnnouncementState:
+    def __str__(self) -> str:
+        ...
+    def bonus_announced(self, bonus: HungarianTarokkBonus, side: HungarianTarokkSide) -> bool:
+        ...
+    def bonus_kontra_level(self, bonus: HungarianTarokkBonus, side: HungarianTarokkSide) -> int:
+        ...
+    def called_card_tarokk(self) -> Card:
+        ...
+    def current_player(self) -> int:
+        ...
+    def declared_tarokks(self, player: typing.SupportsInt | typing.SupportsIndex) -> int:
+        ...
+    def game_kontra_level(self) -> int:
+        ...
+    def hivatalbol_kontra_player(self) -> int:
+        ...
+    def is_finished(self) -> bool:
+        ...
+    def legal_actions(self) -> list[int]:
+        ...
+    def partner(self) -> int:
+        ...
+    def public_side(self, player: typing.SupportsInt | typing.SupportsIndex) -> typing.Any:
+        ...
+    def to_string(self) -> str:
         ...
 class HungarianTarokkBid:
     """
@@ -122,6 +181,39 @@ class HungarianTarokkBid:
         ...
     @property
     def value(self) -> int:
+        ...
+class HungarianTarokkBiddingState:
+    def __str__(self) -> str:
+        ...
+    def cue_bidder(self) -> int:
+        ...
+    def cued_card(self) -> HungarianTarokkCalledCard:
+        ...
+    def current_player(self) -> int:
+        ...
+    def declarer(self) -> int:
+        ...
+    def is_finished(self) -> bool:
+        ...
+    def legal_actions(self) -> list[int]:
+        ...
+    def num_bidders(self) -> int:
+        ...
+    def obligatory_called_card(self) -> HungarianTarokkCalledCard:
+        ...
+    def pagat_ulti_obligation(self) -> bool:
+        ...
+    def passed_out(self) -> bool:
+        ...
+    def player_bid(self, player: typing.SupportsInt | typing.SupportsIndex) -> typing.Any:
+        ...
+    def standing_bid(self) -> typing.Any:
+        ...
+    def to_string(self) -> str:
+        ...
+    def winning_bid(self) -> HungarianTarokkBid:
+        ...
+    def yielded(self) -> bool:
         ...
 class HungarianTarokkBonus:
     """
@@ -201,6 +293,21 @@ class HungarianTarokkBonusAnnouncement:
     @side.setter
     def side(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
+class HungarianTarokkCall:
+    def __init__(self) -> None:
+        ...
+    @property
+    def action(self) -> int:
+        ...
+    @action.setter
+    def action(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    @property
+    def player(self) -> int:
+        ...
+    @player.setter
+    def player(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
 class HungarianTarokkCalledCard:
     """
     Members:
@@ -273,6 +380,12 @@ class HungarianTarokkObservationStruct(pyspiel.ObservationStruct):
     def __init__(self, arg0: dict) -> None:
         ...
     @property
+    def announcement_history(self) -> list[HungarianTarokkCall]:
+        ...
+    @announcement_history.setter
+    def announcement_history(self, arg0: collections.abc.Sequence[HungarianTarokkCall]) -> None:
+        ...
+    @property
     def bid(self) -> int:
         ...
     @bid.setter
@@ -283,6 +396,12 @@ class HungarianTarokkObservationStruct(pyspiel.ObservationStruct):
         ...
     @bid_slots.setter
     def bid_slots(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
+        ...
+    @property
+    def bidding_history(self) -> list[HungarianTarokkCall]:
+        ...
+    @bidding_history.setter
+    def bidding_history(self, arg0: collections.abc.Sequence[HungarianTarokkCall]) -> None:
         ...
     @property
     def bonus_announcements(self) -> list[HungarianTarokkBonusAnnouncement]:
@@ -385,6 +504,12 @@ class HungarianTarokkObservationStruct(pyspiel.ObservationStruct):
         ...
     @sides.setter
     def sides(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
+        ...
+    @property
+    def trick_history(self) -> list[HungarianTarokkTrick]:
+        ...
+    @trick_history.setter
+    def trick_history(self, arg0: collections.abc.Sequence[HungarianTarokkTrick]) -> None:
         ...
 class HungarianTarokkPhase:
     """
@@ -493,6 +618,10 @@ class HungarianTarokkState(pyspiel.State):
         ...
     def __setstate__(self, arg0: str) -> None:
         ...
+    def announcements(self) -> HungarianTarokkAnnouncementState:
+        ...
+    def bidding(self) -> HungarianTarokkBiddingState:
+        ...
     def current_phase(self) -> HungarianTarokkPhase:
         ...
     def declarer(self) -> int:
@@ -507,129 +636,39 @@ class HungarianTarokkState(pyspiel.State):
         ...
     def winning_bid(self) -> HungarianTarokkBid:
         ...
-class Suit:
-    """
-    Members:
-    
-      HEARTS
-    
-      CLUBS
-    
-      SPADES
-    
-      DIAMONDS
-    """
-    CLUBS: typing.ClassVar[Suit]  # value = <Suit.CLUBS: 2>
-    DIAMONDS: typing.ClassVar[Suit]  # value = <Suit.DIAMONDS: 1>
-    HEARTS: typing.ClassVar[Suit]  # value = <Suit.HEARTS: 0>
-    SPADES: typing.ClassVar[Suit]  # value = <Suit.SPADES: 3>
-    __members__: typing.ClassVar[dict[str, Suit]]  # value = {'HEARTS': <Suit.HEARTS: 0>, 'CLUBS': <Suit.CLUBS: 2>, 'SPADES': <Suit.SPADES: 3>, 'DIAMONDS': <Suit.DIAMONDS: 1>}
-    @typing.overload
-    def __eq__(self, other: Suit) -> bool:
-        ...
-    @typing.overload
-    def __eq__(self, other: typing.SupportsInt | typing.SupportsIndex) -> bool:
-        ...
-    @typing.overload
-    def __eq__(self, other: typing.Any) -> bool:
-        ...
-    def __getstate__(self) -> int:
-        ...
-    def __hash__(self) -> int:
-        ...
-    def __index__(self) -> int:
-        ...
-    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
-        ...
-    def __int__(self) -> int:
-        ...
-    @typing.overload
-    def __ne__(self, other: Suit) -> bool:
-        ...
-    @typing.overload
-    def __ne__(self, other: typing.SupportsInt | typing.SupportsIndex) -> bool:
-        ...
-    @typing.overload
-    def __ne__(self, other: typing.Any) -> bool:
-        ...
-    def __repr__(self) -> str:
-        ...
-    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
-        ...
-    def __str__(self) -> str:
+class HungarianTarokkTrick:
+    def __init__(self) -> None:
         ...
     @property
-    def name(self) -> str:
+    def cards(self) -> list[int]:
+        ...
+    @cards.setter
+    def cards(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @property
-    def value(self) -> int:
+    def leader(self) -> int:
         ...
-class SuitRank:
-    """
-    Members:
-    
-      ACE
-    
-      JACK
-    
-      RIDER
-    
-      QUEEN
-    
-      KING
-    """
-    ACE: typing.ClassVar[SuitRank]  # value = <SuitRank.ACE: 0>
-    JACK: typing.ClassVar[SuitRank]  # value = <SuitRank.JACK: 1>
-    KING: typing.ClassVar[SuitRank]  # value = <SuitRank.KING: 4>
-    QUEEN: typing.ClassVar[SuitRank]  # value = <SuitRank.QUEEN: 3>
-    RIDER: typing.ClassVar[SuitRank]  # value = <SuitRank.RIDER: 2>
-    __members__: typing.ClassVar[dict[str, SuitRank]]  # value = {'ACE': <SuitRank.ACE: 0>, 'JACK': <SuitRank.JACK: 1>, 'RIDER': <SuitRank.RIDER: 2>, 'QUEEN': <SuitRank.QUEEN: 3>, 'KING': <SuitRank.KING: 4>}
-    @typing.overload
-    def __eq__(self, other: SuitRank) -> bool:
-        ...
-    @typing.overload
-    def __eq__(self, other: typing.SupportsInt | typing.SupportsIndex) -> bool:
-        ...
-    @typing.overload
-    def __eq__(self, other: typing.Any) -> bool:
-        ...
-    def __getstate__(self) -> int:
-        ...
-    def __hash__(self) -> int:
-        ...
-    def __index__(self) -> int:
-        ...
-    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
-        ...
-    def __int__(self) -> int:
-        ...
-    @typing.overload
-    def __ne__(self, other: SuitRank) -> bool:
-        ...
-    @typing.overload
-    def __ne__(self, other: typing.SupportsInt | typing.SupportsIndex) -> bool:
-        ...
-    @typing.overload
-    def __ne__(self, other: typing.Any) -> bool:
-        ...
-    def __repr__(self) -> str:
-        ...
-    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
-        ...
-    def __str__(self) -> str:
+    @leader.setter
+    def leader(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     @property
-    def name(self) -> str:
+    def winner(self) -> int:
         ...
-    @property
-    def value(self) -> int:
+    @winner.setter
+    def winner(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
 class TalonActions:
     ANNUL: typing.ClassVar[int] = 90
     DECLINE_ANNUL: typing.ClassVar[int] = 91
     DISCARD_ACTION_BASE: typing.ClassVar[int] = 48
     @staticmethod
+    def card_for_discard_action(action: typing.SupportsInt | typing.SupportsIndex) -> Card:
+        ...
+    @staticmethod
     def discard_action_for_card(card: Card) -> int:
+        ...
+    @staticmethod
+    def is_discard_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
         ...
 NUM_CARDS: int = 42
 NUM_DISTINCT_ACTIONS: int = 151
