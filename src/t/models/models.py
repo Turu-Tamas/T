@@ -7,6 +7,7 @@ from .sequence_resampler import SequenceResampler
 from .tricks_encoder import TricksEncoder, SingleTrickEncoder
 from .multisequence import MultiSequenceSelfAttentionLayer
 import pyspiel.hungarian_tarokk as T
+from tensordict import TensorClass
 
 
 class BiddingModel(nn.Module):
@@ -198,3 +199,28 @@ class PlayModel(nn.Module):
         x = self.head(x)        
 
         return x
+
+class TarokkModel(nn.Module):
+    class ObservationStruc(TensorClass):
+        hand: torch.ShortTensor
+        bid_slots: torch.ShortTensor
+        announcements_actions: torch.ShortTensor
+        announcements_players: torch.ShortTensor
+        current_players: torch.ShortTensor
+        trick_leaders: torch.ShortTensor
+        trick_winners: torch.ShortTensor
+        trick_cards: torch.ShortTensor
+
+    @classmethod
+    def get_observation_struct(cls, state: T.HungarianTarokkState):
+        pass
+
+    def __init__(self, config):
+        super().__init__()
+        self.bidding = BiddingModel(**config["bidding"])
+        self.discard = DiscardsModel(**config["discards"])
+        self.announcement = AnnouncementsModel(**config["announcement"])
+        self.play = PlayModel(**config["play"])
+
+    def forward(self, obs):
+        pass
