@@ -1,0 +1,9 @@
+NUM_PLAYERS = 4
+# Each player plays exactly one card per trick.
+CARDS_PER_TRICK = NUM_PLAYERS
+
+NUM_BID_SLOTS = 7
+
+MAX_HAND_SIZE = 12
+MAX_ANNOUNCEMENTS_LENGTH = 12
+MAX_NUM_TRICKS = 9

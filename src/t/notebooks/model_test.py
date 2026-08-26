@@ -7,9 +7,9 @@ with initialize(version_base=None, config_path="conf"):
     )
 
 #%%
-%load_ext autoreload
-%autoreload 2
-%aimport -torch -numpy -hydra
+%load_ext autoreload #type: ignore
+%autoreload 2  #type: ignore
+%aimport -torch -numpy -hydra  #type: ignore
 
 #%%
 from t.models.models import TarokkModel
