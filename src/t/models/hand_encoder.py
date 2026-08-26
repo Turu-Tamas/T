@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 from pyspiel.hungarian_tarokk import NUM_CARDS
 
-MAX_HAND_SIZE = 12
-
 class HandEncoder(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, num_layers):
         super().__init__()

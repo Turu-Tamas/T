@@ -9,28 +9,58 @@ from .multisequence import MultiSequenceCrossAttention
 import pyspiel.hungarian_tarokk as T
 from .input_struct import InputTensorClass
 
-_phase_action_counts = {
+_PHASE_ACTION_COUNTS = {
     T.HungarianTarokkPhase.BIDDING: 6,
     T.HungarianTarokkPhase.PLAYING: T.NUM_CARDS,
     T.HungarianTarokkPhase.ANNOUNCEMENTS: ANNOUNCEMENTS_NUM_ACTIONS,
     T.HungarianTarokkPhase.TALON_EXCHANGE: T.NUM_CARDS
 }
-_phase_action_starts = {
+_PHASE_ACTION_STARTS = {
     T.HungarianTarokkPhase.BIDDING: 42,
     T.HungarianTarokkPhase.PLAYING: 0,
     T.HungarianTarokkPhase.ANNOUNCEMENTS: 92,
     T.HungarianTarokkPhase.TALON_EXCHANGE: 48
 }
 
-class BiddingModel(nn.Module):
-    def __init__(self, config):
+_ENCODER_BUILDERS = {
+    "hand": lambda config: HandEncoder(**config["hand_encoder"]),
+    "bidding": lambda config: BiddingEncoder(**config["bidding_encoder"]),
+    "announcements": lambda config: AnnouncementsEncoder(**config["announcements_encoder"]),
+    "tricks": lambda config: TricksEncoder(
+        SingleTrickEncoder(**config["single_trick_encoder"]), **config["tricks_encoder"]
+    ),
+}
+
+_ENCODER_FORWARD = {
+    "hand": lambda encoder, inputs: encoder(inputs.hand),
+    "bidding": lambda encoder, inputs: encoder(inputs.bid_slots, inputs.current_players),
+    "announcements": lambda encoder, inputs: encoder(
+        inputs.announcements.actions, inputs.announcements.players, inputs.current_players
+    ),
+    "tricks": lambda encoder, inputs: encoder(
+        inputs.tricks.leaders, inputs.tricks.winners, inputs.tricks.cards
+    ),
+}
+
+_PHASE_COMPONENTS = {
+    T.HungarianTarokkPhase.BIDDING: ("hand", "bidding"),
+    T.HungarianTarokkPhase.TALON_EXCHANGE: ("hand", "bidding"),
+    T.HungarianTarokkPhase.ANNOUNCEMENTS: ("hand", "bidding", "announcements"),
+    T.HungarianTarokkPhase.PLAYING: ("hand", "bidding", "announcements", "tricks"),
+}
+
+
+class PhaseModel(nn.Module):
+    def __init__(self, config, phase: T.HungarianTarokkPhase):
         super().__init__()
-        self.hand_encoder = HandEncoder(**config["hand_encoder"])
-        self.bidding_encoder = BiddingEncoder(**config["bidding_encoder"])
+        self.components = _PHASE_COMPONENTS[phase]
+        self.encoders = nn.ModuleDict({
+            name: _ENCODER_BUILDERS[name](config) for name in self.components
+        })
 
         layer_config = {k: v for k, v in config["multisequence"].items() if k != "num_layers"}
         self.multisequence = nn.Sequential(*[
-            MultiSequenceCrossAttention(num_sequences=2, **layer_config)            
+            MultiSequenceCrossAttention(num_sequences=len(self.components), **layer_config)
             for _ in range(config["multisequence"]["num_layers"])
         ])
 
@@ -45,11 +75,12 @@ class BiddingModel(nn.Module):
 
         downsampled_len = config["downsampler"]["output_dim"] * config["downsampler"]["output_seq_len"]
         hidden_dim = config["head"]["hidden_dim"]
+
         head_layers = [nn.Linear(downsampled_len, hidden_dim), nn.ReLU()]
         for _ in range(config["head"]["num_layers"]):
             head_layers.append(nn.Linear(hidden_dim, hidden_dim))
             head_layers.append(nn.ReLU())
-        head_layers.append(nn.Linear(hidden_dim, _phase_action_counts[T.HungarianTarokkPhase.BIDDING]))
+        head_layers.append(nn.Linear(hidden_dim, _PHASE_ACTION_COUNTS[phase]))
         self.head = nn.Sequential(*head_layers)
 
     def forward(self, inputs: InputTensorClass):
@@ -58,10 +89,11 @@ class BiddingModel(nn.Module):
         # current_players: [B]
 
         # [B, N_i, d_i]
-        hand_embeddings = self.hand_encoder(inputs.hand)
-        bidding_embeddings = self.bidding_encoder(inputs.bid_slots, inputs.current_players)
+        embeddings = tuple(
+            _ENCODER_FORWARD[name](self.encoders[name], inputs) for name in self.components
+        )
 
-        x = self.multisequence((hand_embeddings, bidding_embeddings))
+        x = self.multisequence(embeddings)
         x = torch.cat(x, dim=1)
         x = self.generic_transformer(x) # [B, N, d]
 
@@ -72,170 +104,14 @@ class BiddingModel(nn.Module):
         return x
 
 
-class DiscardsModel(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.hand_encoder = HandEncoder(**config["hand_encoder"])
-        self.bidding_encoder = BiddingEncoder(**config["bidding_encoder"])
-
-        layer_config = {k: v for k, v in config["multisequence"].items() if k != "num_layers"}
-        self.multisequence = nn.Sequential(*[
-            MultiSequenceCrossAttention(num_sequences=2, **layer_config)            
-            for _ in range(config["multisequence"]["num_layers"])
-        ])
-
-        self.generic_transformer = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                batch_first=True,
-                **{k: v for k, v in config["transformer"].items() if k != "num_layers"}
-            ),
-            num_layers=config["transformer"]["num_layers"]
-        )
-        self.downsampler = SequenceResampler(**config["downsampler"])
-
-        downsampled_len = config["downsampler"]["output_dim"] * config["downsampler"]["output_seq_len"]
-        hidden_dim = config["head"]["hidden_dim"]
-        head_layers = [nn.Linear(downsampled_len, hidden_dim), nn.ReLU()]
-        for _ in range(config["head"]["num_layers"]):
-            head_layers.append(nn.Linear(hidden_dim, hidden_dim))
-            head_layers.append(nn.ReLU())
-        head_layers.append(nn.Linear(hidden_dim, _phase_action_counts[T.HungarianTarokkPhase.TALON_EXCHANGE]))
-        self.head = nn.Sequential(*head_layers)
-
-    def forward(self, inputs: InputTensorClass):
-        # hand: [B, N]
-        # bid_slots: [B, N]
-        # current_players: [B]
-
-        # [B, N_i, d_i]
-        hand_embeddings = self.hand_encoder(inputs.hand)    
-        bidding_embeddings = self.bidding_encoder(inputs.bid_slots, inputs.current_players)
-
-        x = self.multisequence((hand_embeddings, bidding_embeddings))
-        x = torch.cat(x, dim=1)
-        x = self.generic_transformer(x) # [B, N, d]
-
-        x = self.downsampler(x)
-        x = torch.flatten(x, 1, 2)
-        x = self.head(x)        
-
-        return x
-
-
-class AnnouncementsModel(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.hand_encoder = HandEncoder(**config["hand_encoder"])
-        self.bidding_encoder = BiddingEncoder(**config["bidding_encoder"])
-        self.announcements_encoder = AnnouncementsEncoder(**config["announcements_encoder"])
-
-        layer_config = {k: v for k, v in config["multisequence"].items() if k != "num_layers"}
-        self.multisequence = nn.Sequential(*[
-            MultiSequenceCrossAttention(num_sequences=3, **layer_config)            
-            for _ in range(config["multisequence"]["num_layers"])
-        ])
-
-        self.generic_transformer = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                batch_first=True,
-                **{k: v for k, v in config["transformer"].items() if k != "num_layers"}
-            ),
-            num_layers=config["transformer"]["num_layers"]
-        )
-        self.downsampler = SequenceResampler(**config["downsampler"])
-
-        downsampled_len = config["downsampler"]["output_dim"] * config["downsampler"]["output_seq_len"]
-        hidden_dim = config["head"]["hidden_dim"]
-        head_layers = [nn.Linear(downsampled_len, hidden_dim), nn.ReLU()]
-        for _ in range(config["head"]["num_layers"]):
-            head_layers.append(nn.Linear(hidden_dim, hidden_dim))
-            head_layers.append(nn.ReLU())
-        head_layers.append(nn.Linear(hidden_dim, _phase_action_counts[T.HungarianTarokkPhase.ANNOUNCEMENTS]))
-        self.head = nn.Sequential(*head_layers)
-
-    def forward(self, inputs: InputTensorClass):
-        # hand: [B, N]
-        # bid_slots: [B, N]
-        # current_players: [B]
-
-        # [B, N_i, d]
-        hand_embeddings = self.hand_encoder(inputs.hand)    
-        bidding_embeddings = self.bidding_encoder(inputs.bid_slots, inputs.current_players)
-        announcements_embeddings = self.announcements_encoder(inputs.announcements.actions, inputs.announcements.players, inputs.current_players)
-
-        x = self.multisequence((hand_embeddings, bidding_embeddings, announcements_embeddings))
-        x = torch.cat(x, dim=1)
-        x = self.generic_transformer(x) # [B, N, d]
-
-        x = self.downsampler(x)
-        x = torch.flatten(x, 1, 2)
-        x = self.head(x)        
-
-        return x
-
-
-class PlayModel(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.hand_encoder = HandEncoder(**config["hand_encoder"])
-        self.bidding_encoder = BiddingEncoder(**config["bidding_encoder"])
-        self.announcements_encoder = AnnouncementsEncoder(**config["announcements_encoder"])
-        single_trick_encoder = SingleTrickEncoder(**config["single_trick_encoder"])
-        self.tricks_encoder = TricksEncoder(single_trick_encoder, **config["tricks_encoder"])
-
-        layer_config = {k: v for k, v in config["multisequence"].items() if k != "num_layers"}
-        self.multisequence = nn.Sequential(*[
-            MultiSequenceCrossAttention(num_sequences=4, **layer_config)            
-            for _ in range(config["multisequence"]["num_layers"])
-        ])
-
-        self.generic_transformer = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                batch_first=True,
-                **{k: v for k, v in config["transformer"].items() if k != "num_layers"}
-            ),
-            num_layers=config["transformer"]["num_layers"]
-        )
-        self.downsampler = SequenceResampler(**config["downsampler"])
-
-        downsampled_len = config["downsampler"]["output_dim"] * config["downsampler"]["output_seq_len"]
-        hidden_dim = config["head"]["hidden_dim"]
-        head_layers = [nn.Linear(downsampled_len, hidden_dim), nn.ReLU()]
-        for _ in range(config["head"]["num_layers"]):
-            head_layers.append(nn.Linear(hidden_dim, hidden_dim))
-            head_layers.append(nn.ReLU())
-        head_layers.append(nn.Linear(hidden_dim, _phase_action_counts[T.HungarianTarokkPhase.PLAYING]))
-        self.head = nn.Sequential(*head_layers)
-
-    def forward(self, inputs: InputTensorClass):
-        # hand: [B, N]
-        # bid_slots: [B, N]
-        # current_players: [B]
-
-        # [B, N_i, d]
-        hand_embeddings = self.hand_encoder(inputs.hand)
-        bidding_embeddings = self.bidding_encoder(inputs.bid_slots, inputs.current_players)
-        announcements_embeddings = self.announcements_encoder(inputs.announcements.actions, inputs.announcements.players, inputs.current_players)
-        tricks_embeddings = self.tricks_encoder(inputs.tricks.leaders, inputs.tricks.winners, inputs.tricks.cards)
-
-        x = self.multisequence((hand_embeddings, bidding_embeddings, announcements_embeddings, tricks_embeddings))
-        x = torch.cat(x, dim=1)
-        x = self.generic_transformer(x) # [B, N, d]
-
-        x = self.downsampler(x)
-        x = torch.flatten(x, 1, 2)
-        x = self.head(x)        
-
-        return x
-
 class TarokkModel(nn.Module):
     def __init__(self, config):
         super().__init__()
         module_dict = {
-            T.HungarianTarokkPhase.BIDDING: BiddingModel(config["bidding"]),
-            T.HungarianTarokkPhase.PLAYING: PlayModel(config["play"]),
-            T.HungarianTarokkPhase.ANNOUNCEMENTS: AnnouncementsModel(config["announcement"]),
-            T.HungarianTarokkPhase.TALON_EXCHANGE: DiscardsModel(config["discards"])
+            T.HungarianTarokkPhase.BIDDING: PhaseModel(config["bidding"], T.HungarianTarokkPhase.BIDDING),
+            T.HungarianTarokkPhase.PLAYING: PhaseModel(config["play"], T.HungarianTarokkPhase.PLAYING),
+            T.HungarianTarokkPhase.ANNOUNCEMENTS: PhaseModel(config["announcement"], T.HungarianTarokkPhase.ANNOUNCEMENTS),
+            T.HungarianTarokkPhase.TALON_EXCHANGE: PhaseModel(config["discards"], T.HungarianTarokkPhase.TALON_EXCHANGE)
         }
         self.phase_models = nn.ModuleDict({
             str(int(k)): v
@@ -245,8 +121,8 @@ class TarokkModel(nn.Module):
     def forward(self, x: InputTensorClass):
         outputs = torch.full([*x.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf)
         def _add_output(phase: T.HungarianTarokkPhase):
-            length = _phase_action_counts[phase]
-            start = _phase_action_starts[phase]
+            length = _PHASE_ACTION_COUNTS[phase]
+            start = _PHASE_ACTION_STARTS[phase]
             mask = torch.eq(x.phase, int(phase))
             masked_input = x[mask]
             if masked_input.size(0) == 0:

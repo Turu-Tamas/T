@@ -3,10 +3,7 @@ import torch
 import pyspiel.hungarian_tarokk as T
 from typing import cast
 import torch.nn.functional as F
-
-MAX_ANNOUNCEMENTS_LENGTH = 12
-MAX_NUM_TRICKS = 9
-MAX_HAND_SIZE = 12
+from .constants import MAX_ANNOUNCEMENTS_LENGTH, MAX_NUM_TRICKS, MAX_HAND_SIZE, CARDS_PER_TRICK
 
 class InputAnnouncement(TensorClass["tensor_only"]):
     actions: torch.Tensor
@@ -38,7 +35,7 @@ class InputTrick(TensorClass["tensor_only"]):
     @classmethod
     def new(cls, trick_history: list[T.HungarianTarokkTrick], current_trick_cards: list[int]):
         current_trick = T.HungarianTarokkTrick()
-        current_trick.cards = current_trick_cards + [-1] * (4 - len(current_trick_cards))
+        current_trick.cards = current_trick_cards + [-1] * (CARDS_PER_TRICK - len(current_trick_cards))
         current_trick.leader = trick_history[-1].winner if len(trick_history) > 0 else 0
         current_trick.winner = -1
         all_tricks = trick_history + [current_trick]
