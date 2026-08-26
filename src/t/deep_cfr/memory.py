@@ -2,122 +2,86 @@ import torch
 import numpy as np
 from typing import NamedTuple
 import tree as np_tree
+from tensordict import TensorClass
+from ..models.input_struct import InputTensorClass
 
 def set_seed(seed):
-  np.random.seed(seed)
-  torch.manual_seed(seed)
-  if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
+class AdvantageMemory(TensorClass):
+    inputs: InputTensorClass
+    iteration: torch.Tensor
+    advantage: torch.Tensor
 
-class AdvantageMemory(NamedTuple):
-  """Advantage network memory buffer."""
-
-  info_state: np.ndarray
-  iteration: np.ndarray
-  advantage: np.ndarray
-
-
-class StrategyMemory(NamedTuple):
-  """Stratefy network memory buffer."""
-
-  info_state: np.ndarray
-  iteration: np.ndarray
-  strategy_action_probs: np.ndarray
-
+class StrategyMemory(TensorClass):
+    inputs: InputTensorClass
+    iteration: torch.Tensor
+    strategy_action_probs: torch.Tensor
+    
 
 class ReservoirBuffer:
-  """Allows uniform sampling over a stream of data.
+    def __init__(
+        self, capacity: int, experience: AdvantageMemory | StrategyMemory
+    ) -> None:
+        self.capacity = capacity
+        self.experience = experience
+        self.add_calls = 0
 
-  See https://en.wikipedia.org/wiki/Reservoir_sampling for more details.
-  """
+    def __len__(self) -> int:
+        return min(self.add_calls.item(), self.capacity.item())
 
-  def __init__(
-      self, capacity: np.ndarray, experience: AdvantageMemory | StrategyMemory
-  ) -> None:
-    self.capacity = capacity
-    self.experience = experience
-    self.add_calls = np.array(0)
+    def __getitem__(self, idx):
+        return np_tree.map_structure(lambda data: data[idx], self.experience)
 
-  def __len__(self) -> int:
-    return min(self.add_calls.item(), self.capacity.item())
+    @classmethod
+    def init(
+        cls, capacity: int, experience: AdvantageMemory | StrategyMemory
+    ) -> "ReservoirBuffer":
+        # Initialize buffer by replicating the structure of the experience
+        experience_ = np_tree.map_structure(
+            lambda x: np.empty((capacity, *x.shape), dtype=x.dtype), experience
+        )
+        return cls(np.array(capacity), experience_)
 
-  def __getitem__(self, idx):
-    return np_tree.map_structure(lambda data: data[idx], self.experience)
+    def append(
+        self,
+        experience: AdvantageMemory | StrategyMemory,
+    ) -> None:
+        # Determine the insertion index
+        # Note: count + 1 because the current item is the (count+1)-th item
+        idx = np.random.randint(0, self.add_calls + 1)
 
-  @classmethod
-  def init(
-      cls, capacity: int, experience: AdvantageMemory | StrategyMemory
-  ) -> "ReservoirBuffer":
-    # Initialize buffer by replicating the structure of the experience
-    experience_ = np_tree.map_structure(
-        lambda x: np.empty((capacity, *x.shape), dtype=x.dtype), experience
-    )
-    return cls(np.array(capacity), experience_)
+        # 2. Logic:
+        # If buffer is not full, we always add at 'count'.
+        # If buffer is full, we replace at 'idx' ONLY IF idx < capacity.
+        is_full = self.add_calls >= self.capacity
+        write_idx = idx if is_full else self.add_calls
+        should_update = write_idx < self.capacity
 
-  def append(
-      self,
-      experience: AdvantageMemory | StrategyMemory,
-  ) -> None:
-    """Potentially adds `experience` to the reservoir buffer.
+        if should_update:
+            self.experience[write_idx].update_(experience)
+        self.add_calls += 1
 
-    Args:
-      experience: data to be added to the reservoir buffer.
+    def sample(self, num_samples: int) -> AdvantageMemory | StrategyMemory:
+        max_size = len(self)
+        if max_size < num_samples:
+          raise ValueError(
+              f"{num_samples} elements could not be sampled from size {max_size}"
+          )
 
-    Returns:
-      None as the method updated the buffer in-place
-    """
-    # Determine the insertion index
-    # Note: count + 1 because the current item is the (count+1)-th item
-    idx = np.random.randint(0, self.add_calls + 1)
+        indices = np.random.choice(max_size, size=(num_samples,), replace=False)
 
-    # 2. Logic:
-    # If buffer is not full, we always add at 'count'.
-    # If buffer is full, we replace at 'idx' ONLY IF idx < capacity.
-    is_full = self.add_calls >= self.capacity
-    write_idx = np.where(is_full, idx, self.add_calls)
-    should_update = write_idx < self.capacity
+        return np_tree.map_structure(lambda data: data[indices], self.experience)
 
-    def _inplace(arr, idx, val):
-      arr[idx] = val
+    def shuffle(self) -> None:
+        permutation = np.random.permutation(len(self))
+        self.experience[:len(self)] = self.experience[:len(self)][permutation]
 
-    if should_update:
-      np_tree.map_structure(
-          lambda buf_leaf, exp_leaf: _inplace(buf_leaf, write_idx, exp_leaf),
-          self.experience,
-          experience,
-      )
-    self.add_calls += 1
 
-  def sample(self, num_samples: int) -> AdvantageMemory | StrategyMemory:
-    """Returns `num_samples` uniformly sampled from the buffer.
-
-    Args:
-      num_samples: `int`, number of samples to draw.
-
-    Returns:
-      An iterable over `num_samples` random elements of the buffer.
-    Raises:
-      ValueError: If there are less than `num_samples` elements in the buffer
-    """
-    max_size = len(self)
-    if max_size < num_samples:
-      raise ValueError(
-          f"{num_samples} elements could not be sampled from size {max_size}"
-      )
-
-    indices = np.random.choice(max_size, size=(num_samples,), replace=False)
-
-    return np_tree.map_structure(lambda data: data[indices], self.experience)
-
-  def shuffle(self) -> None:
-    """Shuffling the reservoir buffer along the batch axis."""
-    np_tree.map_structure(
-        lambda x: np.random.shuffle(x[: len(self)]), self.experience
-    )
-
-  def clear(self) -> None:
-    """Clears the reservoir buffer."""
-    self.add_calls = np.array(0)
+    def clear(self) -> None:
+        self.add_calls = 0

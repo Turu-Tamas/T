@@ -15,7 +15,8 @@ def _chance_node_sample_action(state: T.HungarianTarokkState):
 
 class GameDataCollector:
     def __init__(self):
-        pass
+        self._advantage_memories = None
+        self._strategy_memories = None
 
     def _sample_action_from_advantage(self, state: T.HungarianTarokkState, player: pyspiel.PlayerId):
         info_state = state.information_state_tensor(player)
