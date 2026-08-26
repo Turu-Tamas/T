@@ -1,0 +1,6 @@
+dim: 64
+num_heads: 4
+mlp_ratio: 4.0
+dropout: 0.0
+bias: true
+num_layers: 2

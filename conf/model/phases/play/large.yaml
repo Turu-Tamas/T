@@ -1,0 +1,11 @@
+defaults:
+  - /model/components/encoders/hand_encoder@hand_encoder: large
+  - /model/components/encoders/bidding_encoder@bidding_encoder: large
+  - /model/components/encoders/announcements_encoder@announcements_encoder: large
+  - /model/components/encoders/single_trick_encoder@single_trick_encoder: large
+  - /model/components/encoders/tricks_encoder@tricks_encoder: large
+  - /model/components/multisequence@multisequence: large
+  - /model/components/transformer@transformer: large
+  - /model/components/downsampler@downsampler: large
+  - /model/components/head@head: large
+  - _self_

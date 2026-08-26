@@ -1,153 +1,134 @@
-import math
 import torch
 import torch.nn as nn
 
 
-class MultiSequenceSelfAttentionHead(nn.Module):
-    def __init__(self, n_sequences, d_model, d_head, d_query):
-        super().__init__()
-
-        self.d_model = d_model
-        self.d_head = d_head
-        self.d_query = d_query
-
-        self.query = nn.ModuleList([
-            nn.Linear(d_model, d_query)
-            for _ in range(n_sequences)
-        ])
-
-        self.key = nn.ModuleList([
-            nn.Linear(d_model, d_query)
-            for _ in range(n_sequences)
-        ])
-
-        self.value = nn.ModuleList([
-            nn.Linear(d_model, d_head)
-            for _ in range(n_sequences)
-        ])
-
-    def forward(self, *sequences):
-        # Each sequence: [B, N_i, D]
-
-        queries = torch.cat([
-            query(seq)
-            for query, seq in zip(self.query, sequences)
-        ], dim=1)  # [B, N, d_query]
-
-        keys = torch.cat([
-            key(seq)
-            for key, seq in zip(self.key, sequences)
-        ], dim=1)  # [B, N, d_query]
-
-        values = torch.cat([
-            value(seq)
-            for value, seq in zip(self.value, sequences)
-        ], dim=1)  # [B, N, d_head]
-
-        attention_scores = queries @ keys.transpose(-2, -1)
-        attention_scores = attention_scores / math.sqrt(self.d_query)
-
-        attention_weights = torch.softmax(
-            attention_scores,
-            dim=-1,
-        )
-
-        x = attention_weights @ values
-        # [B, N, d_head]
-
-        return x
-
-
-class MultiSequenceSelfAttentionLayer(nn.Module):
+class MultiSequenceCrossAttention(nn.Module):
     def __init__(
         self,
-        n_heads,
-        n_sequences,
-        d_model,
-        d_query=None,
-        d_ff=None,
-        dropout=0.0,
+        dim: int,
+        num_heads: int,
+        num_sequences: int,
+        mlp_ratio: float = 4.0,
+        dropout: float = 0.0,
+        bias: bool = True,
     ):
         super().__init__()
 
-        assert d_model % n_heads == 0, \
-            "d_model must be divisible by n_heads"
+        self.dim = dim
+        self.num_heads = num_heads
+        self.num_sequences = num_sequences
 
-        self.n_heads = n_heads
-        self.d_model = d_model
-        self.d_head = d_model // n_heads
+        assert dim % num_heads == 0
 
-        if d_query is None:
-            d_query = self.d_head
-
-        if d_ff is None:
-            d_ff = 4 * d_model
-
-        self.d_query = d_query
-
-        self.heads = nn.ModuleList([
-            MultiSequenceSelfAttentionHead(
-                n_sequences=n_sequences,
-                d_model=d_model,
-                d_head=self.d_head,
-                d_query=d_query,
-            )
-            for _ in range(n_heads)
+        self.sequence_embedding = nn.Parameter(torch.randn((num_sequences, dim)) * 0.02)
+        # Separate Q/K/V projection for every sequence.
+        self.q_proj = nn.ModuleList([
+            nn.Linear(dim, dim, bias=bias)
+            for _ in range(num_sequences)
+        ])
+        self.k_proj = nn.ModuleList([
+            nn.Linear(dim, dim, bias=bias)
+            for _ in range(num_sequences)
+        ])
+        self.v_proj = nn.ModuleList([
+            nn.Linear(dim, dim, bias=bias)
+            for _ in range(num_sequences)
+        ])
+        self.out_proj = nn.ModuleList([
+            nn.Linear(dim, dim, bias=bias)
+            for _ in range(num_sequences)
         ])
 
-        # Multi-head attention output projection
-        self.output_projection = nn.Linear(
-            d_model,
-            d_model,
-        )
+        # Pre-normalization.
+        self.norm_attn = nn.ModuleList([
+            nn.LayerNorm(dim)
+            for _ in range(num_sequences)
+        ])
+        self.norm_ff = nn.ModuleList([
+            nn.LayerNorm(dim)
+            for _ in range(num_sequences)
+        ])
 
-        # Feedforward block
-        self.feedforward = nn.Sequential(
-            nn.Linear(d_model, d_ff),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(d_ff, d_model),
-            nn.Dropout(dropout),
-        )
+        hidden_dim = int(dim * mlp_ratio)
+        self.ff = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(dim, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, dim),
+                nn.Dropout(dropout),
+            )
+            for _ in range(num_sequences)
+        ])
 
-        # Pre-normalization
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
 
-    def forward(self, *sequences):
-        # Each sequence: [B, N_i, D]
-        x = torch.cat(sequences, dim=1)
-        # [B, N, D]
+    def forward(self, sequences):
+        if len(sequences) != self.num_sequences:
+            raise ValueError(
+                f"Expected {self.num_sequences} sequences, "
+                f"got {len(sequences)}."
+            )
 
-        normed_sequences = tuple(
-            self.norm1(seq)
-            for seq in sequences
-        )
-
-        head_outputs = [
-            head(*normed_sequences)
-            for head in self.heads
+        x = [
+            self.norm_attn[i](seq + self.sequence_embedding[i])
+            for i, seq in enumerate(sequences)
+        ]
+        queries = [
+            self.q_proj[i](x[i])
+            for i in range(self.num_sequences)
+        ]
+        keys = [
+            self.k_proj[i](x[i])
+            for i in range(self.num_sequences)
+        ]
+        values = [
+            self.v_proj[i](x[i])
+            for i in range(self.num_sequences)
         ]
 
-        # Each head: [B, N, d_head]
-        attention_output = torch.cat(
-            head_outputs,
-            dim=-1,
-        )
-        # [B, N, d_model]
+        outputs = []
+        for i in range(self.num_sequences):
+            # Don't include sequence i in its own K/V memory.
+            other_keys = torch.cat(
+                [
+                    keys[j]
+                    for j in range(self.num_sequences)
+                    if j != i
+                ],
+                dim=1,
+            )
+            other_values = torch.cat(
+                [
+                    values[j]
+                    for j in range(self.num_sequences)
+                    if j != i
+                ],
+                dim=1,
+            )
 
-        attention_output = self.output_projection(
-            attention_output
-        )
+            q = queries[i]
+            # (B, L_i, D) @ (B, D, L_other)
+            scores = torch.matmul(
+                q,
+                other_keys.transpose(-2, -1),
+            )
+            scores = scores / (self.dim ** 0.5)
+            attn = torch.softmax(scores, dim=-1)
+            attn = self.dropout(attn)
 
-        x = x + attention_output
-        # Residual 1
-        # [B, N, d_model]
+            # (B, L_i, L_other) @ (B, L_other, D)
+            attended = torch.matmul(attn, other_values)
+            attended = self.out_proj[i](attended)
 
-        x = x + self.feedforward(
-            self.norm2(x)
-        )
-        # Residual 2
-        # [B, N, d_model]
+            # Residual connection
+            outputs.append(
+                sequences[i] + attended
+            )
 
-        return x
+        outputs = [
+            outputs[i] + self.ff[i](self.norm_ff[i](outputs[i]))
+            for i in range(self.num_sequences)
+        ]
+
+        return tuple(outputs)

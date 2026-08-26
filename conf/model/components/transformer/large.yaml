@@ -1,0 +1,6 @@
+d_model: 256
+nhead: 8
+dim_feedforward: 256
+dropout: 0.1
+batch_first: true
+num_layers: 4

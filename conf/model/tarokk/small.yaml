@@ -1,0 +1,6 @@
+defaults:
+  - /model/phases/bidding@bidding: small
+  - /model/phases/discards@discards: small
+  - /model/phases/announcement@announcement: small
+  - /model/phases/play@play: small
+  - _self_

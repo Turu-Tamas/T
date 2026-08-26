@@ -1,0 +1,5 @@
+input_dim: 256
+output_dim: 256
+output_seq_len: 16
+num_heads: 8
+dropout: 0.1

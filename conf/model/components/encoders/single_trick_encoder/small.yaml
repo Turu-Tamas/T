@@ -1,0 +1,4 @@
+d_model: 64
+nhead: 4
+dim_feedforward: 256
+num_layers: 2

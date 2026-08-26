@@ -1,0 +1,4 @@
+# d_model is inherited from the single_trick_encoder passed in at construction time.
+nhead: 8
+dim_feedforward: 1024
+num_layers: 3

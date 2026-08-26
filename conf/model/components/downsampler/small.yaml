@@ -1,0 +1,5 @@
+input_dim: 64
+output_dim: 64
+output_seq_len: 8
+num_heads: 4
+dropout: 0.0

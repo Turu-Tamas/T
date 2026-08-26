@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import pyspiel.hungarian_tarokk as T
 
-
 _NUM_TRICKS = 9
 
 class SingleTrickEncoder(nn.Module):
@@ -96,7 +95,7 @@ class TricksEncoder(nn.Module):
 
         padding_mask = winners < 0
         x = self.encoder(x, src_key_padding_mask=padding_mask)
-        x = x.masked_fill(padding_mask, 0.0)
+        x = x.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         assert x.size(1) <= _NUM_TRICKS
 
         return x

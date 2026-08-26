@@ -8,6 +8,7 @@ class BiddingEncoder(nn.Module):
     def __init__(self, d_model=32, nhead=4, n_layers=2):
         super().__init__()
 
+        # no padding index because unbid slots carry information
         self.player_embedding = nn.Embedding(_NUM_PLAYERS + 1, d_model)
         self.relative_pos_embedding = nn.Embedding(_NUM_PLAYERS + 1, d_model)
         self.slot_embedding = nn.Embedding(_NUM_BID_SLOTS, d_model)

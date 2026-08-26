@@ -21,3 +21,20 @@ obs_tc = build_observation_tensorclass(obs, legals)
 #%%
 hand = [Card(idx) for idx in obs_tc.hand.argwhere()]
 print([str(card) for card in hand])
+
+#%%
+import torch.nn as nn
+import torch
+encoder_layer = nn.TransformerEncoderLayer(
+    d_model=8,
+    nhead=4,
+    dim_feedforward=4,
+    batch_first=True,
+)
+
+encoder = nn.TransformerEncoder(
+    encoder_layer,
+    num_layers=2,
+)
+
+encoder(torch.randn([0, 2, 8]), src_key_padding_mask=torch.randn([0,2]) > 0)

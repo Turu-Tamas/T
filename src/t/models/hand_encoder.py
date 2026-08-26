@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from pyspiel.hungarian_tarokk import NUM_CARDS
 
-CARD_PAD_TOKEN = -1
 MAX_HAND_SIZE = 12
 
 class HandEncoder(nn.Module):
@@ -10,9 +9,9 @@ class HandEncoder(nn.Module):
         super().__init__()
 
         self.embedding = nn.Embedding(
-            num_embeddings=NUM_CARDS,
+            num_embeddings=NUM_CARDS + 1, # +1 for padding
             embedding_dim=d_model,
-            padding_idx=CARD_PAD_TOKEN,
+            padding_idx=0,
         )
 
         encoder_layer = nn.TransformerEncoderLayer(
@@ -29,10 +28,10 @@ class HandEncoder(nn.Module):
 
     def forward(self, tokens: torch.Tensor) -> torch.Tensor:
         # [batch, seq_len, d_model]
-        x = self.embedding(tokens)
+        x = self.embedding(tokens + 1)
 
         # Treat padding tokens as attention-masked
-        padding_mask = tokens.eq(CARD_PAD_TOKEN)
+        padding_mask = tokens.eq(-1)
 
         # [batch, seq_len, d_model]
         x = self.encoder(

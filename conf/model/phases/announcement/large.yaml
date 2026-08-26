@@ -1,0 +1,9 @@
+defaults:
+  - /model/components/encodershand_encoder@hand_encoder: large
+  - /model/components/encodersbidding_encoder@bidding_encoder: large
+  - /model/components/encodersannouncements_encoder@announcements_encoder: large
+  - /model/components/multisequence@multisequence: large
+  - /model/components/transformer@transformer: large
+  - /model/components/downsampler@downsampler: large
+  - /model/components/head@head: large
+  - _self_
