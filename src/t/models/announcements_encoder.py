@@ -1,11 +1,8 @@
 import torch
 import torch.nn as nn
 from pyspiel import hungarian_tarokk as T
-from .constants import NUM_PLAYERS
+from .constants import NUM_PLAYERS, ANNOUNCEMENTS_FIRST_ACTION, ANNOUNCEMENTS_LAST_ACTION, ANNOUNCEMENTS_NUM_ACTIONS
 
-_FIRST_ACTION = T.AnnouncementActions.CALL_ACTION_BASE
-_LAST_ACTION = T.AnnouncementActions.LAST_ACTION
-ANNOUNCEMENTS_NUM_ACTIONS = _LAST_ACTION - _FIRST_ACTION + 1
 
 class AnnouncementsEncoder(nn.Module):
     def __init__(self, d_model, nhead, n_layers):
