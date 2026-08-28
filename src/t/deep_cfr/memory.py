@@ -44,7 +44,8 @@ class ReservoirBuffer:
         assert experience.batch_dims == 0
         if self.experience is None:
             self.experience = experience.cpu().apply(
-                lambda leaf: torch.empty([self.capacity, *leaf.shape], dtype=leaf.dtype))
+                lambda leaf: torch.empty([self.capacity, *leaf.shape], dtype=leaf.dtype),
+                batch_size=[self.capacity])
 
         if self.add_calls < self.capacity:
             write_idx = self.add_calls

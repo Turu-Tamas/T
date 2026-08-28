@@ -1,0 +1,24 @@
+defaults:
+  - /model/tarokk@model: small
+  - _self_
+
+seed: 0
+num_iterations: 1
+
+sampler:
+  advantage_capacity: 1_000_000
+  strategy_capacity: 1_000_000
+  num_traversals: 100
+
+training:
+  lr: 1e-3
+
+data:
+  advantage:
+    train_split: 0.9
+    batch_size: 256
+    workers: 4
+  strategy:
+    train_split: 0.9
+    batch_size: 256
+    workers: 4

@@ -12,6 +12,7 @@ from ..models.constants import *
 from .sampling import GameSampler
 import pyspiel
 import pyspiel.hungarian_tarokk as T
+import hydra
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -34,16 +35,16 @@ class GameDataSet(Dataset):
         return self.buf[index]
 
 class PolicyTrainingModule(L.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, network):
         super().__init__()
-        self.model = TarokkModel(config["model"])
+        self.network = network
         self.loss = nn.MSELoss()
         self.lr = config["training"]["lr"]
 
     def training_step(self, batch: StrategyMemory):
         x = batch.inputs
         y = batch.strategy_action_probs
-        outs = self.model(x)
+        outs = self.network(x)
         iters = batch.iteration.sqrt()
         loss = self.loss(iters * y, iters * outs)
         return loss
@@ -51,9 +52,10 @@ class PolicyTrainingModule(L.LightningModule):
     def validation_step(self, batch: StrategyMemory):
         x = batch.inputs
         y = batch.strategy_action_probs
-        outs = self.model(x)
+        outs = self.network(x)
+        probs = torch.softmax(outs, dim=-1)
         iters = batch.iteration.sqrt()
-        loss = self.loss(iters * y, iters * outs)
+        loss = self.loss(iters * y, iters * probs)
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
 
     def configure_optimizers(self):
@@ -62,16 +64,16 @@ class PolicyTrainingModule(L.LightningModule):
 
 
 class AdvantageTrainingModule(L.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, network):
         super().__init__()
-        self.model = TarokkModel(config["model"])
+        self.network = network
         self.loss = nn.MSELoss(reduction="mean")
         self.lr = config["training"]["lr"]
 
     def training_step(self, batch: AdvantageMemory):
         x = batch.inputs
         y = batch.advantage
-        outs = self.model(x)
+        outs = self.network(x)
         iters = batch.iteration.sqrt()
         loss = self.loss(iters * y, iters * outs)
         return loss
@@ -79,7 +81,7 @@ class AdvantageTrainingModule(L.LightningModule):
     def validation_step(self, batch: AdvantageMemory):
         x = batch.inputs
         y = batch.advantage
-        outs = self.model(x)
+        outs = self.network(x)
         iters = batch.iteration.sqrt()
         loss = self.loss(iters * y, iters * outs)
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
@@ -102,9 +104,9 @@ def make_dataloaders(config, buf: ReservoirBuffer):
             num_workers=config["workers"],
         )
 
-    return _make_dloader(train_dataset, val_dataset)
+    return _make_dloader(train_dataset), _make_dloader(val_dataset)
 
-def train_advantage_network(config, advantage_buffer: ReservoirBuffer, iteration: int):
+def train_advantage_network(config, advantage_buffer: ReservoirBuffer, network, iteration: int):
     tensorboard_logger = TensorBoardLogger(
         root_dir="lightning_logs",
         sub_dir=f"it_{iteration}",
@@ -116,7 +118,7 @@ def train_advantage_network(config, advantage_buffer: ReservoirBuffer, iteration
         callbacks=[early_stopping]
     )
 
-    module = AdvantageTrainingModule(config)
+    module = AdvantageTrainingModule(config, network)
     train_loader, val_loader = make_dataloaders(config["data"]["advantage"], advantage_buffer)
     trainer.fit(module, train_loader, val_loader)
 
@@ -131,17 +133,25 @@ def train_policy_network(config, strategy_buffer: ReservoirBuffer):
         callbacks=[early_stopping]
     )
 
-    module = PolicyTrainingModule(config)
+    module = PolicyTrainingModule(config, TarokkModel(config["model"]))
     train_loader, val_loader = make_dataloaders(config["data"]["strategy"], strategy_buffer)
     trainer.fit(module, train_loader, val_loader)
 
-def main_loop(config):
+@hydra.main(config_path="conf/", config_name="config")
+def main(config):
     set_seed(config["seed"])
     game = pyspiel.load_game("hungarian_tarokk")
     sampler = GameSampler(get_input, game, **config["sampler"])
+    sampler.set_advantage_network(TarokkModel(config["model"]))
     for iteration in range(config["num_iterations"]):
+        print(f"Training Advantage networks at iteration {iteration}")
         for player in range(NUM_PLAYERS):
+            print(f"Traversals for player {player}")
             sampler.run_traversals(player, iteration)
-            train_advantage_network(config, sampler.advantage_memory, iteration)
+        train_advantage_network(config, sampler.advantage_memory, sampler.network, iteration)
 
+    print("Training Policy Network")
     train_policy_network(config, sampler.strategy_memory)
+
+if __name__ == "__main__":
+    main()

@@ -2039,6 +2039,7 @@ dependencies = [
     { name = "tensorboard" },
     { name = "tensordict" },
     { name = "torch" },
+    { name = "tqdm" },
     { name = "wheel" },
 ]
 
@@ -2051,7 +2052,7 @@ dev = [
 requires-dist = [
     { name = "attrs", specifier = ">=26.1.0" },
     { name = "dm-tree", specifier = ">=0.1.10" },
-    { name = "hydra-core", specifier = ">=1.3.5" },
+    { name = "hydra-core", specifier = ">=1.3,<1.4" },
     { name = "ipykernel" },
     { name = "jupyterlab" },
     { name = "lightning", specifier = ">=2.6.5" },
@@ -2065,6 +2066,7 @@ requires-dist = [
     { name = "tensorboard", specifier = ">=2.21.0" },
     { name = "tensordict" },
     { name = "torch" },
+    { name = "tqdm", specifier = ">=4.70.0" },
     { name = "wheel" },
 ]
 
