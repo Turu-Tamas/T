@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from pyspiel import hungarian_tarokk as T
-from .constants import NUM_PLAYERS, ANNOUNCEMENTS_FIRST_ACTION, ANNOUNCEMENTS_LAST_ACTION, ANNOUNCEMENTS_NUM_ACTIONS
+from .constants import NUM_PLAYERS, ANNOUNCEMENTS_NUM_ACTIONS
 
 
 class AnnouncementsEncoder(nn.Module):
