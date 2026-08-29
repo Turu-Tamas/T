@@ -43,7 +43,7 @@ class PolicyTrainingModule(L.LightningModule):
 
     def training_step(self, batch: StrategyMemory):
         x = batch.inputs
-        y = batch.strategy_action_probs
+        y = batch.action_probs
         outs = self.network(x)
         iters = batch.iteration.sqrt()
         loss = self.loss(iters * y, iters * outs)
@@ -51,7 +51,7 @@ class PolicyTrainingModule(L.LightningModule):
 
     def validation_step(self, batch: StrategyMemory):
         x = batch.inputs
-        y = batch.strategy_action_probs
+        y = batch.action_probs
         outs = self.network(x)
         probs = torch.softmax(outs, dim=-1)
         iters = batch.iteration.sqrt()

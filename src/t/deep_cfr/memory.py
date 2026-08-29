@@ -20,7 +20,7 @@ class AdvantageMemory(TensorClass):
 class StrategyMemory(TensorClass):
     inputs: InputTensorClass
     iteration: torch.Tensor
-    strategy_action_probs: torch.Tensor
+    action_probs: torch.Tensor
     
 
 class ReservoirBuffer:
