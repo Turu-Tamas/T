@@ -14,6 +14,7 @@ import pyspiel
 import pyspiel.hungarian_tarokk as T
 import hydra
 from tensordict import TensorClass
+from .policies import get_policies
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -127,38 +128,14 @@ def train_policy_network(config, strategy_buffer: ReservoirBuffer):
     train_loader, val_loader = make_dataloaders(config["data"]["strategy"], strategy_buffer)
     trainer.fit(module, train_loader, val_loader)
 
-def get_policies(config, model):
-    def _target(raw_advantage, action_mask):
-        # regret matching policy
-        positive = raw_advantage.clip(min=0.0)
-        total = positive.sum()
-        if total < 1e-6:
-            result = np.zeros_like(positive)
-            idx = np.where(action_mask, raw_advantage, -np.inf).argmax()
-            result[idx] = 1.
-            return result
-        return positive / total
-
-    def _sampling(raw_advantage, action_mask):
-        if np.random.random() < config["exploration"]:
-            result = np.zeros_like(raw_advantage)
-            result[action_mask] = 1. / action_mask.sum()
-            return result / result.sum()
-        return _target(raw_advantage, action_mask)
-
-    @torch.inference_mode
-    def _policies(x: InputTensorClass):
-        raw_advantage = model(x).cpu().numpy().astype(np.float64)
-        return _sampling(raw_advantage, x.action_mask), _target(raw_advantage, x.action_mask)
-
-    return _policies
-
 @hydra.main(config_path="conf/", config_name="config")
 def main(config):
     set_seed(config["seed"])
     game = pyspiel.load_game("hungarian_tarokk")
-    sampler = GameSampler(get_input, game, **config["sampler"])
-    model = TarokkModelNoAnnouncements(config["model"]).to(config["device"])
+    get_input_device = lambda state: get_input(state).to(config["sampling_device"], non_blocking=True)
+    sampler = GameSampler(get_input_device, game, **config["sampler"])
+    model = TarokkModelNoAnnouncements(config["model"]).to(config["sampling_device"])
+
     for iteration in range(config["num_iterations"]):
         print(f"Training Advantage networks at iteration {iteration}")
         sampler.run_traversals(iteration, get_policies(config, model))

@@ -6,6 +6,10 @@
     // Or build locally instead of pulling:
     // "build": { "dockerfile": "../Dockerfile" },
 
+    "runArgs": [
+        "--shm-size=16g",
+        "--gpus", "all"
+    ],
     "workspaceFolder": "/workspace",
     "features": {
         "ghcr.io/devcontainers/features/node:1": {},

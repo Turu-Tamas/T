@@ -145,7 +145,7 @@ class AnnouncementsStubModel(nn.Module):
         super().__init__()
 
     def forward(self, x: InputTensorClass):
-        result = torch.zeros([*x.batch_size, 59])
+        result = torch.zeros([*x.batch_size, 59], device=x.device)
         result[..., T.AnnouncementActions.PASS - T.AnnouncementActions.CALL_ACTION_BASE] = 1e20 # overriden in parent forward() if illegal
         return result
 
@@ -165,7 +165,7 @@ class TarokkModelNoAnnouncements(nn.Module):
 
     def forward(self, x: InputTensorClass):
         x_exp = x.unsqueeze(0) if x.ndim == 0 else x
-        outputs = torch.full([*x_exp.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf)
+        outputs = torch.full([*x_exp.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf, device=x.device)
         def _add_output(phase: T.HungarianTarokkPhase):
             mask = torch.eq(x_exp.phase, int(phase))
             masked_input = x_exp[mask]
