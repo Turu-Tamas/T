@@ -22,7 +22,8 @@ class AnnouncementsEncoder(nn.Module):
 
     def forward(self, actions, players, current_player):
         x = self.position_embedding(players + 1)
-        relative_positions = torch.where(players < 0, -1, (players - current_player) % NUM_PLAYERS)
+        positions = (players - current_player.reshape(-1, 1)) % NUM_PLAYERS
+        relative_positions = torch.where(players < 0, -1, positions)
         x = x + self.relative_pos_embedding(relative_positions + 1)
 
         x = x + self.action_embedding(actions + 1)

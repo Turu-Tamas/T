@@ -48,14 +48,14 @@ class SingleTrickEncoder(nn.Module):
         trick_padding = winners < 0
         padding_mask = trick_padding.reshape(b * n, 1).expand(-1, _ROLE_TOKENS_PER_TRICK)
         x = self.encoder(x, src_key_padding_mask=padding_mask) # [B*N, ROLE_TOKENS, D]
-        x = x[:, 0, :]                       # [B*N, D]
+        x = x[:, 0, :].reshape(b, n, -1)
 
         x = x.masked_fill(
             trick_padding.unsqueeze(-1),
             0.0,
         )
 
-        return x.reshape(b, n, -1)              # [B, N, D]
+        return x # [B, N, D]
 
 
 class TricksEncoder(nn.Module):

@@ -63,5 +63,65 @@ regrets = np.concat(regrets)
 plt.hist(np.log10(np.abs(regrets)[regrets != 0]), log=True)
 
 #%%
-%%timeit -n 1000
-sampler._calculate_regrets(sampler._sample_trajectory(sampling_policy, target_policy))
+outputs = torch.tensor([   -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+         0.1920, -0.1890, -0.0444,  0.0836, -0.0239, -0.0411,  0.0841, -0.0641,
+        -0.1656, -0.1279,  0.0492,  0.0782,  0.0169, -0.1679,  0.1538, -0.1449,
+        -0.0425, -0.0881,  0.1412, -0.1561,  0.1338, -0.0472,  0.0718, -0.2059,
+        -0.1660, -0.0235, -0.0696,  0.0063, -0.0196,  0.0636,  0.1705,  0.0085,
+         0.1625,  0.0694, -0.0055,  0.1157,  0.0282,  0.0790,  0.1064, -0.1410,
+        -0.0719, -0.0935,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf,
+           -inf,    -inf,    -inf,    -inf,    -inf,    -inf,    -inf])
+mask = torch.tensor([False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+         True,  True, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False])
+torch.arange(outputs.size(0))[outputs != -inf]
+torch.arange(outputs.size(0))[mask]
+
+#%%
+import torch
+from torch import inf
+mask = torch.tensor([False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False,  True,  True, False, False,  True, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False, False,
+        False])
+
+torch.arange(151 )[mask]
+#%%
+from t.models.models import _PHASE_ACTION_SPACES
+print(_PHASE_ACTION_SPACES)

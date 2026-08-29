@@ -28,7 +28,8 @@ class BiddingEncoder(nn.Module):
         x = self.player_embedding(bidders)
 
         x = x + self.slot_embedding.weight.unsqueeze(0)
-        relative_positions = torch.where(bid_slot_to_player >= 0, (bid_slot_to_player - current_player) % NUM_PLAYERS, NUM_PLAYERS)
+        positions = (bid_slot_to_player - current_player.reshape(-1, 1)) % NUM_PLAYERS
+        relative_positions = torch.where(bid_slot_to_player >= 0, positions, NUM_PLAYERS)
         x = x + self.relative_pos_embedding(relative_positions)
 
         # [B, 7, D]

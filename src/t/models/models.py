@@ -9,17 +9,18 @@ from .multisequence import MultiSequenceCrossAttention
 import pyspiel.hungarian_tarokk as T
 from .input_struct import InputTensorClass
 
-_PHASE_ACTION_COUNTS = {
-    T.HungarianTarokkPhase.BIDDING: 6,
-    T.HungarianTarokkPhase.PLAYING: T.NUM_CARDS,
-    T.HungarianTarokkPhase.ANNOUNCEMENTS: ANNOUNCEMENTS_NUM_ACTIONS,
-    T.HungarianTarokkPhase.TALON_EXCHANGE: T.NUM_CARDS
+_PHASE_ACTION_SPACES = {
+    phase: T.phase_actions(phase)
+    for phase in [
+        T.HungarianTarokkPhase.BIDDING,
+        T.HungarianTarokkPhase.PLAYING,
+        T.HungarianTarokkPhase.ANNOUNCEMENTS,
+        T.HungarianTarokkPhase.TALON_EXCHANGE
+    ]
 }
-_PHASE_ACTION_STARTS = {
-    T.HungarianTarokkPhase.BIDDING: 42,
-    T.HungarianTarokkPhase.PLAYING: 0,
-    T.HungarianTarokkPhase.ANNOUNCEMENTS: 92,
-    T.HungarianTarokkPhase.TALON_EXCHANGE: 48
+_PHASE_ACTION_COUNTS = {
+    phase: len(actions)
+    for phase, actions in _PHASE_ACTION_SPACES.items()
 }
 
 _ENCODER_BUILDERS = {
@@ -122,13 +123,13 @@ class TarokkModel(nn.Module):
         outputs = torch.full([*x.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf)
         def _add_output(phase: T.HungarianTarokkPhase):
             length = _PHASE_ACTION_COUNTS[phase]
-            start = _PHASE_ACTION_STARTS[phase]
             mask = torch.eq(x.phase, int(phase))
             masked_input = x[mask]
             if masked_input.size(0) == 0:
                 return
             output = self.phase_models[str(int(phase))](masked_input.to_int())
-            outputs[mask, start:start + length] = output
+            actions = _PHASE_ACTION_SPACES[phase]
+            outputs[mask, actions] = output
 
         _add_output(T.HungarianTarokkPhase.BIDDING)
         _add_output(T.HungarianTarokkPhase.TALON_EXCHANGE)
@@ -137,3 +138,51 @@ class TarokkModel(nn.Module):
 
         outputs[~x.action_mask] = -torch.inf
         return outputs
+
+
+class AnnouncementsStubModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: InputTensorClass):
+        result = torch.zeros([*x.batch_size, 59])
+        result[..., T.AnnouncementActions.PASS - T.AnnouncementActions.CALL_ACTION_BASE] = 1e20 # overriden in parent forward() if illegal
+        return result
+
+class TarokkModelNoAnnouncements(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        module_dict = {
+            T.HungarianTarokkPhase.BIDDING: PhaseModel(config["bidding"], T.HungarianTarokkPhase.BIDDING),
+            T.HungarianTarokkPhase.PLAYING: PhaseModel(config["play"], T.HungarianTarokkPhase.PLAYING),
+            T.HungarianTarokkPhase.ANNOUNCEMENTS: AnnouncementsStubModel(),
+            T.HungarianTarokkPhase.TALON_EXCHANGE: PhaseModel(config["discards"], T.HungarianTarokkPhase.TALON_EXCHANGE)
+        }
+        self.phase_models = nn.ModuleDict({
+            str(int(k)): v
+            for k, v in module_dict.items()
+        })
+
+    def forward(self, x: InputTensorClass):
+        x_exp = x.unsqueeze(0) if x.ndim == 0 else x
+        outputs = torch.full([*x_exp.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf)
+        def _add_output(phase: T.HungarianTarokkPhase):
+            mask = torch.eq(x_exp.phase, int(phase))
+            masked_input = x_exp[mask]
+            if masked_input.size(0) == 0:
+                return
+            output = self.phase_models[str(int(phase))](masked_input.to_int())
+            actions = _PHASE_ACTION_SPACES[phase]
+            rows = mask.nonzero(as_tuple=True)[0]
+            outputs[rows[:, None], actions] = output
+
+        _add_output(T.HungarianTarokkPhase.BIDDING)
+        _add_output(T.HungarianTarokkPhase.TALON_EXCHANGE)
+        _add_output(T.HungarianTarokkPhase.ANNOUNCEMENTS)
+        _add_output(T.HungarianTarokkPhase.PLAYING)
+
+        outputs[~x_exp.action_mask] = -torch.inf
+        if x.ndim == 0:
+            return outputs.squeeze(0)
+        else:
+            return outputs

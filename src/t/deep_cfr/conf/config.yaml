@@ -4,11 +4,13 @@ defaults:
 
 seed: 0
 num_iterations: 1
+exploration: 0.3
+device: "cuda"
 
 sampler:
   advantage_capacity: 1_000_000
   strategy_capacity: 1_000_000
-  num_traversals: 100
+  num_traversals: 1000
 
 training:
   lr: 1e-3

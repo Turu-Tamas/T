@@ -3,6 +3,8 @@ import numpy as np
 from typing import NamedTuple
 from tensordict import TensorClass
 from ..models.input_struct import InputTensorClass
+from torch.utils.data import Dataset
+
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -23,7 +25,7 @@ class StrategyMemory(TensorClass):
     action_probs: torch.Tensor
     
 
-class ReservoirBuffer:
+class ReservoirBuffer(Dataset):
     def __init__(
         self, capacity: int
     ) -> None:
