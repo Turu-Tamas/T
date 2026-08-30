@@ -65,7 +65,7 @@ def calculate_regrets(trajectory: Trajectory):
 
     return regrets
 
-TRAJECTORY_INPUTS_INITIAL_SIZE = 30
+TRAJECTORY_INPUTS_INITIAL_SIZE = 70
 
 class GameSampler:
     def __init__(self, advantage_capacity, strategy_capacity, num_traversals, batch_size, device):
@@ -77,6 +77,7 @@ class GameSampler:
         self._batch_size = batch_size
         self.device = device
         self._inputs_buffer = InputTensorClass.empty([batch_size]).pin_memory()
+        self._inputs_buffer.share_memory_()
         self._trajectory_inputs_buffer = InputTensorClass.empty([batch_size, TRAJECTORY_INPUTS_INITIAL_SIZE])
 
     def _add_memory(self, trajectory: Trajectory, inputs, regrets: np.ndarray, iteration):
@@ -102,7 +103,7 @@ class GameSampler:
         for _slot, state, trajectory in self._in_flight:
             while state.is_chance_node():
                 actions, probs = zip(*state.chance_outcomes())
-                probs = np.array(probs); actions = np.array(actions)
+                probs = np.asarray(probs); actions = np.asarray(actions)
                 action = np.random.choice(actions, p=probs)
 
                 state.apply_action(action)

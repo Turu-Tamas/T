@@ -41,7 +41,7 @@ class ReservoirBuffer(Dataset):
 
     def _maybe_initialize_buffer(self, experience):
         if self.experience is None:
-            self.experience = experience.cpu().apply(
+            self.experience = experience.apply(
                 lambda leaf: torch.empty([self.capacity, *leaf.shape], dtype=leaf.dtype),
                 batch_size=[self.capacity])
 

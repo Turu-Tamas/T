@@ -133,10 +133,10 @@ def main(config):
     sampler = GameSampler( **config["sampler"])
     model = TarokkModelNoAnnouncements(config["model"]).to(config["sampler"]["device"])
 
-    sampler.run_traversals(0, get_policies(config, model))
-    return
     for iteration in range(config["num_iterations"]):
         print(f"Training Advantage networks at iteration {iteration}")
+        sampler.run_traversals(iteration, get_policies(config, model))
+        return
         train_advantage_network(config, sampler.advantage_memory, model, iteration)
 
     print("Training Policy Network")
