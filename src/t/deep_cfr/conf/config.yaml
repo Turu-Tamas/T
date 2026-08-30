@@ -9,9 +9,9 @@ exploration: 0.3
 sampler:
   advantage_capacity: 1_000_000
   strategy_capacity: 1_000_000
-  num_traversals: 10000
-  batch_size: 2000
-  device: "cpu"
+  num_traversals: 20_000
+  batch_size: 4096
+  device: "cuda"
 
 training:
   lr: 1e-3

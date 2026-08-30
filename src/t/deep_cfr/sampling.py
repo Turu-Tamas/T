@@ -28,6 +28,9 @@ class Trajectory:
             players=[]
         )
 
+    def __len__(self):
+        return len(self.players)
+
 def calculate_regrets(trajectory: Trajectory):
     sampling_probs = np.array(trajectory.sampling_probs, dtype=np.float64)
     target_probs = np.array(trajectory.target_probs, dtype=np.float64)
@@ -72,9 +75,7 @@ class GameSampler:
         self._num_traversals = num_traversals
         self._batch_size = batch_size
         self.device = device
-        self._inputs_buffer = InputTensorClass.empty([batch_size])
-        if device != "cpu":
-            self._inputs_buffer.pin_memory_(device)
+        self._inputs_buffer = InputTensorClass.empty([batch_size]).pin_memory()
 
     def _add_memory(self, trajectory: Trajectory, regrets: np.ndarray, iteration):
         players_mask = np.array(trajectory.players) >= 0
@@ -126,7 +127,8 @@ class GameSampler:
         if n_envs == 0:
             return
         with torch.inference_mode():
-            probs_sampling, probs_target = policies(self._inputs_buffer[:n_envs].to(self.device))
+            inputs = self._inputs_buffer[:n_envs].to(self.device, non_blocking=True)
+            probs_sampling, probs_target = policies(inputs)
 
         actions = torch.multinomial(
             torch.from_numpy(probs_sampling),
@@ -134,7 +136,7 @@ class GameSampler:
         ).squeeze(1).numpy()
         taken_probs = probs_sampling[np.arange(n_envs), actions]
 
-        for inpt, action, taken_prob, target_prob, (state, trajectory) in zip(self._inputs_buffer[:n_envs], actions, taken_probs, probs_target, non_chance_states):
+        for inpt, action, taken_prob, target_prob, (state, trajectory) in zip(self._inputs_buffer[:n_envs].clone(), actions, taken_probs, probs_target, non_chance_states):
             trajectory.inputs.append(inpt)
             trajectory.taken_actions.append(action)
             trajectory.sampling_probs.append(taken_prob)
@@ -145,10 +147,14 @@ class GameSampler:
                 state.apply_action(action)
             except pyspiel.SpielError:
                 print(action, state.legal_actions(), trajectory.taken_actions)
+                raise
 
     def handle_terminal_envs(self, iteration):
-        for idx, (state, trajectory) in enumerate(self._in_flight):
+        remaining = len(self._in_flight)
+        new_in_flight = []
+        for state, trajectory in self._in_flight:
             if not state.is_terminal():
+                new_in_flight.append((state, trajectory))
                 continue
 
             trajectory.returns = np.array(state.returns())
@@ -156,13 +162,15 @@ class GameSampler:
             self._add_memory(trajectory, regret, iteration)
             self._num_finished += 1
 
-            if self._num_finished + len(self._in_flight) > self._num_traversals:
-                self._in_flight.pop(idx)
+            if self._num_finished + remaining > self._num_traversals:
+                remaining -= 1
             else:
-                self._in_flight[idx] = (
+                new_in_flight.append((
                     self._game.new_initial_state(),
                     Trajectory.new_empty(),
-                )
+                ))
+
+        self._in_flight = new_in_flight
 
     def step_envs(self, policies, iteration):
         self.step_chance_nodes()
