@@ -10,17 +10,16 @@ import time
 
 @dataclass
 class Trajectory:
-    inputs: list
     taken_actions: list[int]
     sampling_probs: list
     target_probs: list
     returns: list
     players: list
+    num_inputs: int = 0
 
     @classmethod
     def new_empty(cls):
         return cls(
-            inputs=[],
             taken_actions=[],
             sampling_probs=[],
             target_probs=[],
@@ -66,6 +65,8 @@ def calculate_regrets(trajectory: Trajectory):
 
     return regrets
 
+TRAJECTORY_INPUTS_INITIAL_SIZE = 30
+
 class GameSampler:
     def __init__(self, advantage_capacity, strategy_capacity, num_traversals, batch_size, device):
         self.advantage_memory = ReservoirBuffer(advantage_capacity)
@@ -76,12 +77,12 @@ class GameSampler:
         self._batch_size = batch_size
         self.device = device
         self._inputs_buffer = InputTensorClass.empty([batch_size]).pin_memory()
+        self._trajectory_inputs_buffer = InputTensorClass.empty([batch_size, TRAJECTORY_INPUTS_INITIAL_SIZE])
 
-    def _add_memory(self, trajectory: Trajectory, regrets: np.ndarray, iteration):
+    def _add_memory(self, trajectory: Trajectory, inputs, regrets: np.ndarray, iteration):
         players_mask = np.array(trajectory.players) >= 0
         target_probs = torch.from_numpy(np.array(trajectory.target_probs))[players_mask]
 
-        inputs = torch.stack([inpt for inpt in trajectory.inputs if inpt is not None])
         regrets = torch.from_numpy(regrets)
         iteration = torch.full(inputs.shape, iteration)
         self.advantage_memory.extend(AdvantageMemory(
@@ -98,9 +99,8 @@ class GameSampler:
         ))
 
     def step_chance_nodes(self):
-        for state, trajectory in self._in_flight:
+        for _slot, state, trajectory in self._in_flight:
             while state.is_chance_node():
-                trajectory.inputs.append(None)
                 actions, probs = zip(*state.chance_outcomes())
                 probs = np.array(probs); actions = np.array(actions)
                 action = np.random.choice(actions, p=probs)
@@ -116,19 +116,22 @@ class GameSampler:
                 trajectory.players.append(int(pyspiel.PlayerId.CHANCE))
 
     def step_non_chance_nodes(self, policies):
-        non_chance_states = []
-        for idx, (state, trajectory) in enumerate(self._in_flight):
+        non_chance = []
+        for slot, state, trajectory in self._in_flight:
             if state.is_chance_node() or state.is_terminal():
                 continue
-            self._inputs_buffer.write_(state, idx)
-            non_chance_states.append((state, trajectory))
+            self._inputs_buffer.write_(state, slot)
+            non_chance.append((slot, state, trajectory))
 
-        n_envs = len(non_chance_states)
+        n_envs = len(non_chance)
         if n_envs == 0:
             return
+
+        slots = torch.tensor([slot for slot, _, _ in non_chance], dtype=torch.long)
+        inputs = self._inputs_buffer[slots]
+
         with torch.inference_mode():
-            inputs = self._inputs_buffer[:n_envs].to(self.device, non_blocking=True)
-            probs_sampling, probs_target = policies(inputs)
+            probs_sampling, probs_target = policies(inputs.to(self.device, non_blocking=True))
 
         actions = torch.multinomial(
             torch.from_numpy(probs_sampling),
@@ -136,12 +139,23 @@ class GameSampler:
         ).squeeze(1).numpy()
         taken_probs = probs_sampling[np.arange(n_envs), actions]
 
-        for inpt, action, taken_prob, target_prob, (state, trajectory) in zip(self._inputs_buffer[:n_envs].clone(), actions, taken_probs, probs_target, non_chance_states):
-            trajectory.inputs.append(inpt)
+        steps = torch.tensor([trajectory.num_inputs for _, _, trajectory in non_chance], dtype=torch.long)
+        buffer_size = self._trajectory_inputs_buffer.size(1)
+        if steps.max() >= buffer_size:
+            new_buffer = InputTensorClass.empty([self._batch_size, int(buffer_size * 1.5)])
+            new_buffer[:, :buffer_size] = self._trajectory_inputs_buffer
+            self._trajectory_inputs_buffer = new_buffer
+
+        self._trajectory_inputs_buffer[slots, steps] = inputs
+
+        for (slot, state, trajectory), action, taken_prob, target_prob in zip(
+            non_chance, actions, taken_probs, probs_target
+        ):
             trajectory.taken_actions.append(action)
             trajectory.sampling_probs.append(taken_prob)
             trajectory.target_probs.append(target_prob)
             trajectory.players.append(state.current_player())
+            trajectory.num_inputs += 1
 
             try:
                 state.apply_action(action)
@@ -152,20 +166,22 @@ class GameSampler:
     def handle_terminal_envs(self, iteration):
         remaining = len(self._in_flight)
         new_in_flight = []
-        for state, trajectory in self._in_flight:
+        for slot, state, trajectory in self._in_flight:
             if not state.is_terminal():
-                new_in_flight.append((state, trajectory))
+                new_in_flight.append((slot, state, trajectory))
                 continue
 
             trajectory.returns = np.array(state.returns())
             regret = calculate_regrets(trajectory)
-            self._add_memory(trajectory, regret, iteration)
+            inputs = self._trajectory_inputs_buffer[slot, :trajectory.num_inputs]
+            self._add_memory(trajectory, inputs, regret, iteration)
             self._num_finished += 1
 
             if self._num_finished + remaining > self._num_traversals:
                 remaining -= 1
             else:
                 new_in_flight.append((
+                    slot,
                     self._game.new_initial_state(),
                     Trajectory.new_empty(),
                 ))
@@ -179,8 +195,8 @@ class GameSampler:
 
     def run_traversals(self, iteration: int, policies):
         self._in_flight = [
-            (self._game.new_initial_state(), Trajectory.new_empty())
-            for _ in range(self._batch_size)
+            (slot, self._game.new_initial_state(), Trajectory.new_empty())
+            for slot in range(self._batch_size)
         ]
         self._num_finished = 0
 
