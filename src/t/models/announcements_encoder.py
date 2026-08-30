@@ -26,6 +26,8 @@ class AnnouncementsEncoder(nn.Module):
         relative_positions = torch.where(players < 0, -1, positions)
         x = x + self.relative_pos_embedding(relative_positions + 1)
 
+        if actions.max() >= ANNOUNCEMENTS_NUM_ACTIONS or actions.min() < -1:
+            print(actions)
         x = x + self.action_embedding(actions + 1)
 
         x = self.transformer(x,

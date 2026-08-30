@@ -2,16 +2,16 @@ defaults:
   - /model/tarokk@model: small
   - _self_
 
-seed: 0
+seed: 42
 num_iterations: 1
 exploration: 0.3
-sampling_device: "cuda"
 
 sampler:
   advantage_capacity: 1_000_000
   strategy_capacity: 1_000_000
   num_traversals: 10000
-  batch_size: 1000
+  batch_size: 2000
+  device: "cpu"
 
 training:
   lr: 1e-3

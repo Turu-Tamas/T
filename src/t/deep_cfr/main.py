@@ -46,7 +46,6 @@ class PolicyTrainingModule(L.LightningModule):
         outs = self.network(x)
         probs = torch.softmax(outs, dim=-1)
         iters = batch.iteration.sqrt().unsqueeze(-1)
-        print(iters.shape, y.shape, probs.shape)
         loss = self.loss(iters * y, iters * probs)
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
 
@@ -131,14 +130,13 @@ def train_policy_network(config, strategy_buffer: ReservoirBuffer):
 @hydra.main(config_path="conf/", config_name="config")
 def main(config):
     set_seed(config["seed"])
-    game = pyspiel.load_game("hungarian_tarokk")
-    get_input_device = lambda state: get_input(state).to(config["sampling_device"], non_blocking=True)
-    sampler = GameSampler(get_input_device, game, **config["sampler"])
-    model = TarokkModelNoAnnouncements(config["model"]).to(config["sampling_device"])
+    sampler = GameSampler( **config["sampler"])
+    model = TarokkModelNoAnnouncements(config["model"]).to(config["sampler"]["device"])
 
+    sampler.run_traversals(0, get_policies(config, model))
+    return
     for iteration in range(config["num_iterations"]):
         print(f"Training Advantage networks at iteration {iteration}")
-        sampler.run_traversals(iteration, get_policies(config, model))
         train_advantage_network(config, sampler.advantage_memory, model, iteration)
 
     print("Training Policy Network")
