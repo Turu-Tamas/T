@@ -102,11 +102,7 @@ class GameSampler:
             new_buffer[:, :buffer_size] = self._trajectory_inputs_buffer
             self._trajectory_inputs_buffer = new_buffer
 
-    def _add_memory(self, trajectory: Trajectory, inputs, regrets: np.ndarray, iteration):
-        players_mask = trajectory.players >= 0
-        target_probs = trajectory.target_probs[players_mask]
-
-        regrets = torch.from_numpy(regrets)
+    def _add_memory(self, target_probs, inputs, regrets, iteration):
         iteration = torch.full(inputs.shape, iteration)
         self.advantage_memory.extend(AdvantageMemory(
             inputs=inputs,
@@ -192,6 +188,9 @@ class GameSampler:
     def handle_terminal_envs(self, iteration):
         remaining = len(self._in_flight)
         new_in_flight = []
+        trajectories: list[Trajectory] = []
+        input_indices = []
+        regrets = []
         for slot, state, cursor in self._in_flight:
             if not state.is_terminal():
                 new_in_flight.append((slot, state, cursor))
@@ -200,8 +199,9 @@ class GameSampler:
             returns = np.array(state.returns())
             trajectory = self._trajectory_buffer[slot, :cursor.num_steps]
             regret = calculate_regrets(trajectory, returns)
-            inputs = self._trajectory_inputs_buffer[slot, :cursor.num_inputs]
-            self._add_memory(trajectory, inputs, regret, iteration)
+            trajectories.append(trajectory)
+            input_indices.append((slot, slice(cursor.num_inputs)))
+            regrets.append(regret)
             self._num_finished += 1
 
             if self._num_finished + remaining > self._num_traversals:
@@ -212,6 +212,12 @@ class GameSampler:
                     self._game.new_initial_state(),
                     TrajectoryCursor(),
                 ))
+
+        if len(regrets) > 0:
+            target_probs = torch.cat([traj.target_probs[traj.players >= 0] for traj in trajectories])
+            inputs = torch.cat([self._trajectory_inputs_buffer[*idx] for idx in input_indices])
+            regrets = torch.from_numpy(np.concatenate(regrets, axis=0))
+            self._add_memory(target_probs, inputs, regrets, iteration)
 
         self._in_flight = new_in_flight
 

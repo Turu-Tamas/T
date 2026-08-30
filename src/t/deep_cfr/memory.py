@@ -14,16 +14,16 @@ def set_seed(seed):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-class AdvantageMemory(TensorClass):
+class AdvantageMemory(TensorClass["tensor_only"]):
     inputs: InputTensorClass
     iteration: torch.Tensor
     advantage: torch.Tensor
 
-class StrategyMemory(TensorClass):
+class StrategyMemory(TensorClass["tensor_only"]):
     inputs: InputTensorClass
     iteration: torch.Tensor
     action_probs: torch.Tensor
-    
+
 
 class ReservoirBuffer(Dataset):
     def __init__(
