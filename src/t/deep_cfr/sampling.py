@@ -7,8 +7,18 @@ from .memory import *
 from tqdm import trange, tqdm
 from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor
-import multiprocessing as mp
+import torch.multiprocessing as mp
+import traceback
 from os import cpu_count
+
+
+class WorkerError(RuntimeError):
+    """Raised in the parent process when an env worker process crashes."""
+
+
+@dataclass
+class _WorkerFailure:
+    traceback: str
 
 
 class Trajectory(TensorClass["tensor_only"]):
@@ -72,8 +82,9 @@ def calculate_regrets(trajectory: Trajectory, returns: np.ndarray):
 
     return regrets
 
-TRAJECTORY_INPUTS_INITIAL_SIZE = 70
-TRAJECTORY_INITIAL_SIZE = 150
+TRAJECTORY_INPUTS_INITIAL_SIZE = 10
+TRAJECTORY_INITIAL_SIZE = 10
+MAX_CONSECUTIVE_CHANCE_NDOES = 42
 
 class EnvWorker:
     def __init__(
@@ -99,7 +110,7 @@ class EnvWorker:
         self._cursors = cursors
         self._actions = actions
 
-    def step_chance_nodes(self):
+    def _step_chance_nodes(self):
         for slot, state in self._in_flight:
             while state.is_chance_node():
                 actions, probs = zip(*state.chance_outcomes())
@@ -112,76 +123,92 @@ class EnvWorker:
                 probs_full = np.zeros([T.NUM_DISTINCT_ACTIONS], dtype=np.float32)
                 probs_full[actions] = probs
 
-                cursor = self._cursors[slot]
                 self._trajectory_buffer.write_(
                     int(action), prob, probs_full, int(pyspiel.PlayerId.CHANCE),
-                    index=(slot, cursor.num_steps),
+                    index=(slot, self._cursors[slot].num_steps),
                 )
-                cursor.num_steps += 1
-            self._inputs_mask[slot] = False
+                self._cursors[slot].num_steps += 1
+            self._inputs_mask[slot] = state.is_player_node()
 
-    def step_non_chance_nodes(self):
-        non_chance = []
+    def write_inputs(self):
         for slot, state in self._in_flight:
             if state.is_chance_node() or state.is_terminal():
                 continue
             self._inputs_buffer.write_(state, slot)
-            non_chance.append((slot, state))
-            self._inputs_mask[slot] = True
 
+    def _step_non_chance_nodes(self):
+        non_chance = []
+        for slot, state in self._in_flight:
+            if state.is_player_node():
+                non_chance.append((slot, state))
         n_envs = len(non_chance)
+
         if n_envs == 0:
             return
 
         slots = torch.tensor([slot for slot, _ in non_chance], dtype=torch.long)
         inputs = self._inputs_buffer[slots]
 
-        input_steps = torch.tensor([cursor.num_inputs for _, _, cursor in non_chance], dtype=torch.long)
+        input_steps = self._cursors[slots].num_inputs
         self._trajectory_inputs_buffer[slots, input_steps] = inputs
 
-        traj_steps = torch.tensor([cursor.num_steps for _, _, cursor in non_chance], dtype=torch.long)
-        self._trajectory_buffer[slots, traj_steps].update_(Trajectory(
-            taken_actions=torch.from_numpy(self._actions),
-            players=torch.tensor([state.current_player() for _, state, _ in non_chance], dtype=torch.int8),
-            batch_size=[n_envs],
-        ))
+        traj_steps = self._cursors[slots].num_steps
+        players = torch.tensor([state.current_player() for _, state in non_chance], dtype=torch.int8)
+        self._trajectory_buffer.taken_actions[slots, traj_steps] = self._actions[slots]
+        self._trajectory_buffer.players[slots, traj_steps] = players
 
-        for (slot, state) in zip(non_chance):
-            cursor = self._cursors[slot]
-            cursor.num_steps += 1
-            cursor.num_inputs += 1
+        for (slot, state) in non_chance:
+            self._cursors.num_steps[slot] += 1
+            self._cursors.num_inputs[slot] += 1
 
             try:
                 state.apply_action(self._actions[slot])
-            except pyspiel.SpielError:
-                history = self._trajectory_buffer.taken_actions[slot, :self.cursor[slot].num_steps]
-                print(self._actions[slot], state.legal_actions(), history)
+                self._inputs_mask[slot] = state.is_player_node()
+            except pyspiel.SpielError as e:
+                history = self._trajectory_buffer.taken_actions[slot, :self._cursors[slot].num_steps]
+                e.add_note(f"{self._actions[slot]}, {history}")
                 raise
 
-    def handle_terminal_envs(self):
+    def _reset_envs(self):
         new_in_flight = []
-        terminated = []
         for slot, state in self._in_flight:
             if not state.is_terminal():
                 new_in_flight.append((slot, state))
                 continue
 
-            terminated.append((slot, state.returns()))
-
+            new_state = self._game.new_initial_state()
             new_in_flight.append((
                 slot,
-                self._game.new_initial_state(),
+                new_state,
             ))
+            self._inputs_mask[slot] = new_state.is_player_node()
+            self._cursors.num_inputs[slot] = 0
+            self._cursors.num_steps [slot]= 0
 
         self._in_flight = new_in_flight
-        print("sub", len(terminated))
+
+    def get_terminal_envs(self):
+        terminated = []
+        for slot, state in self._in_flight:
+            if not state.is_terminal():
+                continue
+            terminated.append((slot, state.returns()))
+
         return terminated
 
-    def step_envs(self):
-        self.step_chance_nodes()
-        self.step_non_chance_nodes()
-        return self.handle_terminal_envs()
+    def step_nodes(self):
+        self._reset_envs()
+        self._step_non_chance_nodes()
+        self._step_chance_nodes()
 
+    def update_buffers(self, traj_buf: Trajectory, traj_inputs_buf: InputTensorClass):
+        self._trajectory_buffer = traj_buf
+        self._trajectory_inputs_buffer = traj_inputs_buf
+
+WORKER_STEP = "step-nodes"
+WORKER_GET_TERMINALS = "get-terminals"
+WORKER_WRITE_INPUTS = "write-inputs"
+WORKER_UPDATE_BUFFERS = "update-buffers"
 
 def env_worker_main(
     start,
@@ -193,17 +220,29 @@ def env_worker_main(
     cursors: TrajectoryCursor,
     actions: torch.LongTensor,
     input_queue: mp.Queue,
-    output_queue: mp.Queue
+    output_queue: mp.Queue,
+    error_queue: mp.Queue
     ):
     worker = EnvWorker(start, stop, inputs_buffer, trajectory_buffer, trajectory_inputs_buffer, inputs_mask, cursors, actions)
 
     msg = input_queue.get()
     while msg != "stop":
-        print("\nworker", start, msg)
-        terminated = worker.step_envs()
-        print("putting in queue")
-        output_queue.put(terminated)
-        print("\nworker", start, "put")
+        try:
+            if msg == WORKER_STEP:
+                worker.step_nodes()
+                output_queue.put("finished")
+            elif msg == WORKER_WRITE_INPUTS:
+                worker.write_inputs()
+                output_queue.put("finished")
+            elif msg == WORKER_GET_TERMINALS:
+                terminated = worker.get_terminal_envs()
+                output_queue.put(terminated)
+            elif isinstance(msg, tuple) and msg[0] == WORKER_UPDATE_BUFFERS:
+                worker.update_buffers(*msg[1])
+                output_queue.put("finished")
+        except Exception:
+            error_queue.put(_WorkerFailure(traceback.format_exc()))
+            raise
         msg = input_queue.get()
 
 class GameSampler:
@@ -238,12 +277,13 @@ class GameSampler:
         self.cursors.unlock_()
         self.actions.share_memory_()
 
-        self.num_processes = 1
+        self.num_processes = 16
         envs_per_process = batch_size // self.num_processes
         self._message_queues = [mp.Queue() for _ in range(self.num_processes)]
         self._output_queue = mp.Queue()
-        self._processes = [
-            mp.Process(target=env_worker_main, kwargs={
+        self._error_queue = mp.Queue()
+        self.subprocess_args = [
+            {
                 "start": idx * envs_per_process,
                 "stop": (idx + 1) * envs_per_process,
                 "inputs_buffer": self._inputs_buffer,
@@ -253,26 +293,33 @@ class GameSampler:
                 "cursors": self.cursors,
                 "actions": self.actions,
                 "input_queue": self._message_queues[idx],
-                "output_queue": self._output_queue
-            })
+                "output_queue": self._output_queue,
+                "error_queue": self._error_queue
+            }
             for idx in range(self.num_processes)
         ]
-        for p in self._processes:
-            p.start()
 
-    def _ensure_trajectory_capacity(self, max_step):
+    def _ensure_trajectory_capacity(self, min_size):
         buffer_size = self._trajectory_buffer.size(1)
-        if max_step >= buffer_size:
-            new_buffer = Trajectory.empty([self._batch_size, int(buffer_size * 1.5)])
+        if min_size > buffer_size:
+            new_buffer = Trajectory.empty([self._batch_size, max(min_size, int(buffer_size * 1.5))])
             new_buffer[:, :buffer_size] = self._trajectory_buffer
+            new_buffer.share_memory_()
+            new_buffer.unlock_()
             self._trajectory_buffer = new_buffer
+            self._send_messages((WORKER_UPDATE_BUFFERS, (self._trajectory_buffer, self._trajectory_inputs_buffer)))
+            self._get_results()
 
-    def _ensure_inputs_buffer_capacity(self, max_step):
+    def _ensure_inputs_buffer_capacity(self, min_size):
         buffer_size = self._trajectory_inputs_buffer.size(1)
-        if max_step >= buffer_size:
-            new_buffer = InputTensorClass.empty([self._batch_size, int(buffer_size * 1.5)])
+        if min_size > buffer_size:
+            new_buffer = InputTensorClass.empty([self._batch_size, max(min_size, int(buffer_size * 1.5))])
             new_buffer[:, :buffer_size] = self._trajectory_inputs_buffer
+            new_buffer.share_memory_()
+            new_buffer.unlock_()
             self._trajectory_inputs_buffer = new_buffer
+            self._send_messages((WORKER_UPDATE_BUFFERS, (self._trajectory_buffer, self._trajectory_inputs_buffer)))
+            self._get_results()
 
     def _add_memory(self, target_probs, inputs, regrets, iteration):
         iteration = torch.full(inputs.shape, iteration)
@@ -294,11 +341,13 @@ class GameSampler:
         input_indices = []
         regrets = []
         for slot, returns in terminated:
-            trajectory = self._trajectory_buffer[slot, :self.cursors[slot].num_steps]
+            trajectory = self._trajectory_buffer[slot, :self.cursors.num_steps[slot]]
             regret = calculate_regrets(trajectory, returns)
             trajectories.append(trajectory)
-            input_indices.append((slot, slice(self.cursor[slot].num_inputs)))
+            input_indices.append((slot, slice(self.cursors[slot].num_inputs)))
             regrets.append(regret)
+
+            # warning: cursor is updated here, child sees the wrong number until this point
             self.cursors[slot].num_steps = 0
             self.cursors[slot].num_inputs = 0
             self._num_finished += 1
@@ -324,46 +373,70 @@ class GameSampler:
         ).squeeze(1).numpy()
         taken_probs = probs_sampling[np.arange(n_envs), actions]
 
-        input_steps = self.cursors[self._inputs_mask].num_inputs
-        self._ensure_inputs_buffer_capacity(input_steps.max())
-        indices = self._inputs_mask.nonzero(as_tuple=True)[0]
-        self._trajectory_inputs_buffer[indices, input_steps] = inputs
-
         traj_steps = self.cursors[self._inputs_mask].num_steps
         indices = self._inputs_mask.nonzero(as_tuple=True)[0]
-        self._trajectory_buffer.update_at_(
-            Trajectory(
-                sampling_probs=torch.from_numpy(taken_probs).double(),
-                target_probs=torch.from_numpy(np.asarray(probs_target)).double(),
-            ),
-            idx=(indices, traj_steps)
-        )
-        self.actions[self._inputs_mask] = actions
+        self._trajectory_buffer.sampling_probs[indices, traj_steps] = torch.from_numpy(taken_probs).double()
+        self._trajectory_buffer.target_probs[indices, traj_steps] = torch.from_numpy(np.asarray(probs_target)).double()
+        self.actions[self._inputs_mask] = torch.from_numpy(actions)
 
-    def step_envs(self, policies, iteration):
-        self.evaluate_policies(policies)
-        self._ensure_trajectory_capacity(self.cursors.num_steps.max())
+    def _send_messages(self, msg):
         for q in self._message_queues:
-            q.put("go")
-        terminated = [
+            q.put(msg)
+
+    def _get_results(self):
+        if not self._error_queue.empty():
+            raise self._error_queue.get_nowait()
+        return [
             self._output_queue.get()
             for _ in range(self.num_processes)
         ]
-        print("parent", terminated)
-        self.process_terminated(terminated, iteration)
+
+    def step_envs(self, policies, iteration):
+        # +1 is the non-chance step
+        self._ensure_trajectory_capacity(self.cursors.num_steps.max() + 1 + MAX_CONSECUTIVE_CHANCE_NDOES) 
+        self._ensure_inputs_buffer_capacity(self.cursors.num_inputs.max() + 1)
+
+        self._send_messages(WORKER_WRITE_INPUTS)
+        self._get_results()
+        self.evaluate_policies(policies)
+
+        self._send_messages(WORKER_STEP)
+        self._get_results()
+
+        self._send_messages(WORKER_GET_TERMINALS)
+        terminals = self._get_results()
+        self.process_terminated([x for xs in terminals for x in xs], iteration)
 
     def run_traversals(self, iteration: int, policies):
         self._num_finished = 0
+        self._processes = [
+            mp.Process(target=env_worker_main, kwargs=self.subprocess_args[idx])
+            for idx in range(self.num_processes)
+        ]
+        for p in self._processes:
+            p.start()
 
         with tqdm(total=self._num_traversals, smoothing=0.01) as pbar:
             prev = self._num_finished
             while self._num_finished < self._num_traversals:
-                self.step_envs(policies, iteration)
+                try:
+                    self.step_envs(policies, iteration)
+                except:
+                    self.join_processes()
+                    pbar.clear()
+                    raise
                 pbar.update(self._num_finished - prev)
                 prev = self._num_finished
+
+        self.join_processes()
 
     def join_processes(self):
         for q in self._message_queues:
             q.put("stop")
         for p in self._processes:
             p.join()
+
+    def clear_queues(self):
+        for q in self._message_queues + [self._output_queue]:
+            while not q.empty():
+                q.get()

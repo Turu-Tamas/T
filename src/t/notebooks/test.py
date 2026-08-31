@@ -124,4 +124,33 @@ mask = torch.tensor([False, False, False, False, False, False, False, False, Fal
 torch.arange(151 )[mask]
 #%%
 from t.models.models import _PHASE_ACTION_SPACES
+from torch import tensor
 print(_PHASE_ACTION_SPACES)
+print(tensor([[ True,  True,  True,  True,  True, False, False, False, False, False,
+         False, False, False, False, False, False,  True,  True,  True,  True,
+          True,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+          True,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+          True,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+          True,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+          True,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+          True,  True,  True, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False, False, False, False, False, False, False, False, False, False,
+         False]])[0].nonzero())
+#%%
+import pyspiel
+import pyspiel.hungarian_tarokk as T
+from typing import cast
+game = pyspiel.load_game("hungarian_tarokk")
+state = cast(T.HungarianTarokkState, game.new_initial_state())
+actions = [15, 39, 30, 24,  5,  6,  2, 36, 25, 29,  0, 41, 33, 10,  9,  8, 14, 22,
+        19, 13, 27,  4, 16, 18, 23, 35, 11, 26, 31,  1, 32,  7,  3, 40, 38, 34]
+for action in actions:
+    state.apply_action(action)
+
+print(state.legal_actions(), state.to_observation_arrays().legal_actions_mask)
