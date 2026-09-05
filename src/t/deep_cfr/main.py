@@ -6,7 +6,7 @@ import torch.nn as nn
 import numpy as np
 from .memory import ReservoirBuffer, AdvantageMemory, StrategyMemory
 from torch.utils.data import Dataset, DataLoader
-from ..models.models import TarokkModelNoAnnouncements
+from ..models.models import TarokkModelNoAnnouncements, TarokkModel
 from ..models.input_struct import get_input, InputTensorClass
 from ..models.constants import *
 from .sampling import GameSampler
@@ -15,6 +15,7 @@ import pyspiel.hungarian_tarokk as T
 import hydra
 from tensordict import TensorClass
 from .policies import get_policies
+import logging
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -34,17 +35,18 @@ class PolicyTrainingModule(L.LightningModule):
 
     def training_step(self, batch: StrategyMemory):
         x = batch.inputs
-        y = batch.action_probs
+        y = batch.action_probs[x.action_mask]
         outs = self.network(x)
+        probs = torch.softmax(outs, dim=-1)[x.action_mask]
         iters = batch.iteration.sqrt().unsqueeze(-1)
-        loss = self.loss(iters * y, iters * outs)
+        loss = self.loss(iters * y, iters * probs)
         return loss
 
     def validation_step(self, batch: StrategyMemory):
         x = batch.inputs
-        y = batch.action_probs
+        y = batch.action_probs[x.action_mask]
         outs = self.network(x)
-        probs = torch.softmax(outs, dim=-1)
+        probs = torch.softmax(outs, dim=-1)[x.action_mask]
         iters = batch.iteration.sqrt().unsqueeze(-1)
         loss = self.loss(iters * y, iters * probs)
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
@@ -63,16 +65,17 @@ class AdvantageTrainingModule(L.LightningModule):
 
     def training_step(self, batch: AdvantageMemory):
         x = batch.inputs
-        y = batch.advantage
-        outs = self.network(x)
+        y = batch.advantage[x.action_mask]
+        outs = self.network(x)[x.action_mask]
         iters = batch.iteration.sqrt().unsqueeze(-1)
         loss = self.loss(iters * y, iters * outs)
+        self.log("train_loss", loss, prog_bar=True, on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch: AdvantageMemory):
         x = batch.inputs
-        y = batch.advantage
-        outs = self.network(x)
+        y = batch.advantage[x.action_mask]
+        outs = self.network(x)[x.action_mask]
         iters = batch.iteration.sqrt().unsqueeze(-1)
         loss = self.loss(iters * y, iters * outs)
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
@@ -99,17 +102,18 @@ def make_dataloaders(config, buf: ReservoirBuffer):
 def train_advantage_network(config, advantage_buffer: ReservoirBuffer, network, iteration: int):
     tensorboard_logger = TensorBoardLogger(
         save_dir="lightning_logs",
-        sub_dir=f"it_{iteration}",
         name=f"advantage",
     )
     early_stopping = EarlyStopping("val_loss")
     trainer = L.Trainer(
         logger=tensorboard_logger,
-        callbacks=[early_stopping]
+        callbacks=[early_stopping],
+        log_every_n_steps=1
     )
 
     module = AdvantageTrainingModule(config, network)
     train_loader, val_loader = make_dataloaders(config["data"]["advantage"], advantage_buffer)
+    network.reset()
     trainer.fit(module, train_loader, val_loader)
 
 def train_policy_network(config, strategy_buffer: ReservoirBuffer):
@@ -130,13 +134,14 @@ def train_policy_network(config, strategy_buffer: ReservoirBuffer):
 @hydra.main(config_path="conf/", config_name="config")
 def main(config):
     set_seed(config["seed"])
+    logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
     sampler = GameSampler( **config["sampler"])
-    model = TarokkModelNoAnnouncements(config["model"]).to(config["sampler"]["device"])
+    model = TarokkModel(config["model"]).to(config["sampler"]["device"])
+    model.reset()
 
-    for iteration in range(config["num_iterations"]):
+    for iteration in range(1, config["num_iterations"] + 1):
         print(f"Training Advantage networks at iteration {iteration}")
         sampler.run_traversals(iteration, get_policies(config, model))
-        return
         train_advantage_network(config, sampler.advantage_memory, model, iteration)
 
     print("Training Policy Network")

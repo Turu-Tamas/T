@@ -120,16 +120,17 @@ class TarokkModel(nn.Module):
         })
 
     def forward(self, x: InputTensorClass):
-        outputs = torch.full([*x.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf)
+        x_exp = x.unsqueeze(0) if x.ndim == 0 else x
+        outputs = torch.full([*x_exp.batch_size, T.NUM_DISTINCT_ACTIONS], -torch.inf, device=x.device)
         def _add_output(phase: T.HungarianTarokkPhase):
-            length = _PHASE_ACTION_COUNTS[phase]
-            mask = torch.eq(x.phase, int(phase))
-            masked_input = x[mask]
+            mask = torch.eq(x_exp.phase, int(phase))
+            masked_input = x_exp[mask]
             if masked_input.size(0) == 0:
                 return
             output = self.phase_models[str(int(phase))](masked_input.to_int())
             actions = _PHASE_ACTION_SPACES[phase]
-            outputs[mask, actions] = output
+            rows = mask.nonzero(as_tuple=True)[0]
+            outputs[rows[:, None], actions] = output
 
         _add_output(T.HungarianTarokkPhase.BIDDING)
         _add_output(T.HungarianTarokkPhase.TALON_EXCHANGE)
@@ -139,15 +140,9 @@ class TarokkModel(nn.Module):
         outputs[~x.action_mask] = -torch.inf
         return outputs
 
-
-class AnnouncementsStubModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x: InputTensorClass):
-        result = torch.zeros([*x.batch_size, 59], device=x.device)
-        result[..., T.AnnouncementActions.PASS - T.AnnouncementActions.CALL_ACTION_BASE] = 1e20 # overriden in parent forward() if illegal
-        return result
+    def reset(self):
+        for param in self.parameters():
+            nn.init.normal_(param, std=0.05)
 
 class TarokkModelNoAnnouncements(nn.Module):
     def __init__(self, config):
@@ -155,7 +150,6 @@ class TarokkModelNoAnnouncements(nn.Module):
         module_dict = {
             T.HungarianTarokkPhase.BIDDING: PhaseModel(config["bidding"], T.HungarianTarokkPhase.BIDDING),
             T.HungarianTarokkPhase.PLAYING: PhaseModel(config["play"], T.HungarianTarokkPhase.PLAYING),
-            T.HungarianTarokkPhase.ANNOUNCEMENTS: AnnouncementsStubModel(),
             T.HungarianTarokkPhase.TALON_EXCHANGE: PhaseModel(config["discards"], T.HungarianTarokkPhase.TALON_EXCHANGE)
         }
         self.phase_models = nn.ModuleDict({
@@ -178,7 +172,6 @@ class TarokkModelNoAnnouncements(nn.Module):
 
         _add_output(T.HungarianTarokkPhase.BIDDING)
         _add_output(T.HungarianTarokkPhase.TALON_EXCHANGE)
-        _add_output(T.HungarianTarokkPhase.ANNOUNCEMENTS)
         _add_output(T.HungarianTarokkPhase.PLAYING)
 
         outputs[~x_exp.action_mask] = -torch.inf
@@ -186,3 +179,7 @@ class TarokkModelNoAnnouncements(nn.Module):
             return outputs.squeeze(0)
         else:
             return outputs
+
+    def reset(self):
+        for param in self.parameters():
+            nn.init.normal_(param, std=0.1)
