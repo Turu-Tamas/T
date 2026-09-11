@@ -3,3 +3,4 @@ wheels/
 __pycache__
 *egg-info
 .vscode
+*outputs/
