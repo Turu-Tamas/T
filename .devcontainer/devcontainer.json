@@ -8,7 +8,6 @@
 
     "runArgs": [
         "--shm-size=16g",
-        "--gpus", "all"
     ],
     "workspaceFolder": "/workspace",
     "features": {

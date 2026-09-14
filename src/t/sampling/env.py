@@ -209,7 +209,7 @@ class TarokkCollector:
                 "in_queue": self.inference_queue,
                 "env_queues": self.env_queues,
                 "err_queue": self.err_queue,
-                "device": "cuda",
+                "device": "cuda" if torch.cuda.is_available() else "cpu",
                 "network": network,
             }
         )
