@@ -376,7 +376,7 @@ class HungarianTarokkGame(pyspiel.Game):
     def __setstate__(self, arg0: str) -> None:
         ...
 class HungarianTarokkObservationArrays:
-    def __init__(self, observation: HungarianTarokkObservationStruct, legal_actions_mask: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200, trick_history_length: typing.SupportsInt | typing.SupportsIndex = 10) -> None:
+    def __init__(self, observation: HungarianTarokkObservationStruct, legal_actions_mask: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200) -> None:
         ...
     @property
     def announcement_history(self) -> HungarianTarokkCallArrays:
@@ -714,10 +714,10 @@ class HungarianTarokkState(pyspiel.State):
     def talon(self) -> list[Card]:
         ...
     @typing.overload
-    def to_observation_arrays(self, player: typing.SupportsInt | typing.SupportsIndex, bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200, trick_history_length: typing.SupportsInt | typing.SupportsIndex = 10) -> HungarianTarokkObservationArrays:
+    def to_observation_arrays(self, player: typing.SupportsInt | typing.SupportsIndex, bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200) -> HungarianTarokkObservationArrays:
         ...
     @typing.overload
-    def to_observation_arrays(self, bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200, trick_history_length: typing.SupportsInt | typing.SupportsIndex = 10) -> HungarianTarokkObservationArrays:
+    def to_observation_arrays(self, bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200) -> HungarianTarokkObservationArrays:
         ...
     def winning_bid(self) -> HungarianTarokkBid:
         ...

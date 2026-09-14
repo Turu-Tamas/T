@@ -87,11 +87,7 @@ class InputTensorClass(TensorClass["tensor_only"]):
     def write_(self, state: T.HungarianTarokkState, index=...) -> None:
         """Fill row `index` of a buffer (or the whole instance, for a non-batched
         one) from `state`, without allocating a new InputTensorClass."""
-        obs = state.to_observation_arrays(
-            announcement_history_length=MAX_ANNOUNCEMENTS_LENGTH,
-            player=state.current_player(),
-            trick_history_length=9
-        )
+        obs = state.to_observation_arrays(announcement_history_length=12)
 
         self.hand[index] = torch.from_numpy(obs.hand)
         self.bid_slots[index] = torch.from_numpy(obs.bid_slots)

@@ -1,11 +1,8 @@
-from .env import TarokkCollector
+from .collector import TarokkCollector
 from torchrl.data import ReplayBuffer, LazyTensorStorage
-from t.models.models import TarokkPolicy, PhasePolicy, RandomAnnouncementsPolicy, RandomPolicy
-from tensordict.nn import TensorDictModule
-from torchrl.modules import ProbabilisticActor
+from t.models.models import TarokkPolicy, RandomAnnouncementsPolicy, RandomPolicy
 import pyspiel.hungarian_tarokk as T
-from t.models.input_struct import InputTensorClass
-from torch.distributions import Categorical
+from time import time
 
 def main():
     network = TarokkPolicy(
@@ -16,8 +13,8 @@ def main():
     ).cuda()
 
     collector = TarokkCollector(
-        num_workers=1,
-        envs_per_worker=32,
+        num_workers=6,
+        envs_per_worker=2048,
         replay_buffer=ReplayBuffer(
             storage=LazyTensorStorage(
                 max_size=20_000,
@@ -27,7 +24,11 @@ def main():
         ),
         network=network
     )
-    collector.collect(10_000 * 110)
+
+    start = time()
+    collector.collect(num_trajs=200_000)
+    end = time()
+    print(f"{start - end:.2f}")
 
 if __name__ == "__main__":
     main()
