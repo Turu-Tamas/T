@@ -38,3 +38,9 @@ outputs = model(inputs).detach().numpy()
 phases = [state.current_phase() for state in states if state.current_player() >= 0]
 extremes = [(arr.max(), arr[arr > -np.inf].min()) for arr in outputs]
 list(zip(extremes, phases))
+
+#%%
+import pyspiel.hungarian_tarokk as T
+import pyspiel
+
+pyspiel.load_game("hungarian_tarokk").max_game_length()

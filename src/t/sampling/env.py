@@ -4,6 +4,7 @@ import pyspiel
 import torch
 import numpy as np
 from torchrl.data import ReplayBuffer
+import pyspiel
 
 class InferenceBuffers(TensorClass["tensor_only"]):
     obs: InputTensorClass
@@ -37,7 +38,7 @@ class TrajectoryBuffer(TensorClass):
             batch_size=[num_envs]
         )
 
-    def grow(self):
+    def grow_capacity(self):
         old_size = self.frames.shape[1]
         num_envs = self.shape[0]
         new_buffer = self.new(num_envs, int(old_size * 1.5))
@@ -51,7 +52,7 @@ class TrajectoryBuffer(TensorClass):
 class ReplayFrames(TensorClass):
     observations: InputTensorClass
     returns: torch.FloatTensor
-    actions: torch.CharTensor
+    actions: torch.ByteTensor
 
     @staticmethod
     def empty(shape):
@@ -77,11 +78,12 @@ class TarokkEnvs:
         # holds unfinished trajectories indexed as [env, frame]
         self.trajectory_buffer = TrajectoryBuffer.new(num_envs, self.INITIAL_TRAJECTORY_BUFFER_SIZE)
         # holds the frames of finished trajectories before writing them to the replay buffer in a single batch
-        self.finished_trajectories = ReplayFrames.empty([self.REPLAY_EXTEND_BATCH_SIZE + 400])
+        finished_capacity = self.REPLAY_EXTEND_BATCH_SIZE + self.game.max_game_length()
+        self.finished_trajectories = ReplayFrames.empty([finished_capacity])
         self.finished_cursor = 0
 
         self.step_to_player_nodes()
-        self.write_obs()
+        self.write_inference_obs()
 
     def write_finished_trajectory(self, env_idx):
         traj_len = self.trajectory_buffer.indices[env_idx]
@@ -89,6 +91,7 @@ class TarokkEnvs:
             return
         observations = self.trajectory_buffer.frames.observations[env_idx, :traj_len]
         actions = self.trajectory_buffer.frames.actions[env_idx, :traj_len]
+        # copy the final returns to every transition because there are no intermediate rewards.
         returns = torch.as_tensor(self.states[env_idx].returns()).expand([traj_len, 4])
         frames = ReplayFrames(
             observations=observations,
@@ -123,26 +126,29 @@ class TarokkEnvs:
 
     def maybe_grow_traj_buffer(self):
         traj_buf = self.trajectory_buffer
-        if traj_buf.indices.max() + 1 >= traj_buf.capacity():
-            self.trajectory_buffer = traj_buf.grow()
+        capacity_needed = traj_buf.indices.max() + 1
+        if capacity_needed >= traj_buf.capacity():
+            self.trajectory_buffer = traj_buf.grow_capacity()
 
-    def write_obs(self):
-        self.inference_buffers.obs.write_(self.states)
-
+    def write_traj_buffer(self):
         self.maybe_grow_traj_buffer()
         traj_buf = self.trajectory_buffer
-
         indices = (torch.arange(self.num_envs), traj_buf.indices)
         traj_buf.frames.actions[*indices] = self.inference_buffers.actions.to(torch.uint8)
         traj_buf.frames.observations[*indices] = self.inference_buffers.obs
         traj_buf.indices += 1
+
+    def write_inference_obs(self):
+        self.inference_buffers.obs.write_(self.states)
 
     def apply_actions(self):
         for idx, state in enumerate(self.states):
             state.apply_action(self.inference_buffers.actions[idx])
 
     def step(self):
+        self.write_traj_buffer()
+
         self.apply_actions()
         # step to player nodes first so that we have an observation to write
         self.step_to_player_nodes()
-        self.write_obs()
+        self.write_inference_obs()

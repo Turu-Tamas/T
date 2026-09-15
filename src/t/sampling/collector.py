@@ -78,6 +78,7 @@ class TarokkCollector:
         self.network = network
         self.envs_per_worker = envs_per_worker
         self.device = device
+        self.num_workers = num_workers
 
         self.inference_buffers = InferenceBuffers.new([num_workers, envs_per_worker])
         self.inference_buffers.share_memory_()
