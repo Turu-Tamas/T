@@ -1,0 +1,4 @@
+#!/bin/bash
+uv pip install pybind11-stubgen
+pybind11-stubgen -o /tmp/py-stubs pyspiel
+cp /tmp/py-stubs/pyspiel/hungarian_tarokk.pyi typings/pyspiel/
