@@ -130,7 +130,7 @@ class TarokkEnvs:
         if capacity_needed >= traj_buf.capacity():
             self.trajectory_buffer = traj_buf.grow_capacity()
 
-    def write_traj_buffer(self):
+    def record_frame(self):
         self.maybe_grow_traj_buffer()
         traj_buf = self.trajectory_buffer
         indices = (torch.arange(self.num_envs), traj_buf.indices)
@@ -146,8 +146,9 @@ class TarokkEnvs:
             state.apply_action(self.inference_buffers.actions[idx])
 
     def step(self):
-        self.write_traj_buffer()
-
+        # the inference buffer contains (current_obs, selected_action).
+        # record that transition to the trajectory_buffer
+        self.record_frame()
         self.apply_actions()
         # step to player nodes first so that we have an observation to write
         self.step_to_player_nodes()
