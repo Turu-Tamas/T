@@ -66,7 +66,7 @@ COPY pyproject.toml uv.lock .python-version ./
 
 # Build/install dependencies before copying src so source edits don't invalidate
 # this expensive layer.
-RUN uv sync
+RUN uv sync --locked
 
 # Install this project in editable mode so host-mounted edits under
 # /workspace/src are picked up without rebuilding the image.

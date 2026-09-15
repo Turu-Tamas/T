@@ -4,7 +4,7 @@ import numpy
 import numpy.typing
 import pyspiel
 import typing
-__all__: list[str] = ['AnnouncementActions', 'BiddingActions', 'Card', 'HungarianTarokkAnnouncementState', 'HungarianTarokkBid', 'HungarianTarokkBiddingState', 'HungarianTarokkBonus', 'HungarianTarokkBonusAnnouncement', 'HungarianTarokkCall', 'HungarianTarokkCallArrays', 'HungarianTarokkCalledCard', 'HungarianTarokkGame', 'HungarianTarokkObservationArrays', 'HungarianTarokkObservationStruct', 'HungarianTarokkPhase', 'HungarianTarokkSide', 'HungarianTarokkState', 'HungarianTarokkTrick', 'HungarianTarokkTrickArrays', 'NUM_CARDS', 'NUM_DISTINCT_ACTIONS', 'NUM_TAROKKS', 'TalonActions', 'phase_actions']
+__all__: list[str] = ['AnnouncementActions', 'BiddingActions', 'Card', 'HungarianTarokkAnnouncementState', 'HungarianTarokkBid', 'HungarianTarokkBiddingState', 'HungarianTarokkBonus', 'HungarianTarokkBonusAnnouncement', 'HungarianTarokkCall', 'HungarianTarokkCallArrays', 'HungarianTarokkCalledCard', 'HungarianTarokkGame', 'HungarianTarokkObservationArrays', 'HungarianTarokkObservationStruct', 'HungarianTarokkPhase', 'HungarianTarokkSide', 'HungarianTarokkState', 'HungarianTarokkTrick', 'HungarianTarokkTrickArrays', 'NUM_CARDS', 'NUM_DISTINCT_ACTIONS', 'NUM_TAROKKS', 'TalonActions', 'phase_actions', 'to_observation_arrays']
 class AnnouncementActions:
     ANNOUNCE_BONUS_BASE: typing.ClassVar[int] = 114
     CALL_ACTION_BASE: typing.ClassVar[int] = 92
@@ -382,7 +382,7 @@ class HungarianTarokkObservationArrays:
     def announcement_history(self) -> HungarianTarokkCallArrays:
         ...
     @property
-    def bid(self) -> int:
+    def bid(self) -> typing.Any:
         ...
     @property
     def bid_slots(self) -> numpy.typing.NDArray[numpy.int8]:
@@ -391,22 +391,22 @@ class HungarianTarokkObservationArrays:
     def bidding_history(self) -> HungarianTarokkCallArrays:
         ...
     @property
-    def called_tarokk(self) -> int:
+    def called_tarokk(self) -> typing.Any:
         ...
     @property
-    def current_player(self) -> int:
+    def current_player(self) -> typing.Any:
         ...
     @property
     def current_trick(self) -> numpy.typing.NDArray[numpy.int8]:
         ...
     @property
-    def current_trick_leader(self) -> int:
+    def current_trick_leader(self) -> typing.Any:
         ...
     @property
     def declared_tarokks(self) -> numpy.typing.NDArray[numpy.int8]:
         ...
     @property
-    def declarer(self) -> int:
+    def declarer(self) -> typing.Any:
         ...
     @property
     def declarer_shown_tarokks(self) -> numpy.typing.NDArray[numpy.int8]:
@@ -415,13 +415,13 @@ class HungarianTarokkObservationArrays:
     def discard_tarokk_counts(self) -> numpy.typing.NDArray[numpy.int8]:
         ...
     @property
-    def game_kontra(self) -> int:
+    def game_kontra(self) -> typing.Any:
         ...
     @property
     def hand(self) -> numpy.typing.NDArray[numpy.int8]:
         ...
     @property
-    def hivatalbol_kontra(self) -> int:
+    def hivatalbol_kontra(self) -> typing.Any:
         ...
     @property
     def last_trick(self) -> numpy.typing.NDArray[numpy.int8]:
@@ -430,13 +430,13 @@ class HungarianTarokkObservationArrays:
     def legal_actions_mask(self) -> numpy.typing.NDArray[numpy.bool]:
         ...
     @property
-    def obligatory_call(self) -> int:
+    def obligatory_call(self) -> typing.Any:
         ...
     @property
-    def observing_player(self) -> int:
+    def observing_player(self) -> typing.Any:
         ...
     @property
-    def phase(self) -> int:
+    def phase(self) -> typing.Any:
         ...
     @property
     def sides(self) -> numpy.typing.NDArray[numpy.int8]:
@@ -766,6 +766,12 @@ class TalonActions:
     def is_discard_action(action: typing.SupportsInt | typing.SupportsIndex) -> bool:
         ...
 def phase_actions(phase: HungarianTarokkPhase) -> list[int]:
+    ...
+@typing.overload
+def to_observation_arrays(states: collections.abc.Sequence[HungarianTarokkState], player: typing.SupportsInt | typing.SupportsIndex, bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200) -> HungarianTarokkObservationArrays:
+    ...
+@typing.overload
+def to_observation_arrays(states: collections.abc.Sequence[HungarianTarokkState], bidding_history_length: typing.SupportsInt | typing.SupportsIndex = 16, announcement_history_length: typing.SupportsInt | typing.SupportsIndex = 200) -> HungarianTarokkObservationArrays:
     ...
 NUM_CARDS: int = 42
 NUM_DISTINCT_ACTIONS: int = 151

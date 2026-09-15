@@ -84,15 +84,19 @@ class InputTensorClass(TensorClass["tensor_only"]):
             batch_size=batch_size,
         )
 
-    def write_(self, state: T.HungarianTarokkState, index=...) -> None:
+    def write_(self, state: T.HungarianTarokkState | list[T.HungarianTarokkState], index=...) -> None:
         """Fill row `index` of a buffer (or the whole instance, for a non-batched
         one) from `state`, without allocating a new InputTensorClass."""
-        obs = state.to_observation_arrays(announcement_history_length=12)
+        if isinstance(state, list):
+            # stacked observation arrays
+            obs = T.to_observation_arrays(state, announcement_history_length=12)
+        else:
+            obs = state.to_observation_arrays(announcement_history_length=12)
 
         self.hand[index] = torch.from_numpy(obs.hand)
         self.bid_slots[index] = torch.from_numpy(obs.bid_slots)
-        self.current_players[index] = obs.current_player
-        self.phase[index] = int(state.current_phase())
+        self.current_players[index] = torch.from_numpy(obs.current_player)
+        self.phase[index] = torch.from_numpy(obs.phase)
 
         self.action_mask[index] = torch.from_numpy(obs.legal_actions_mask)
 

@@ -37,7 +37,7 @@ class TrajectoryBuffer(TensorClass):
             batch_size=[num_envs]
         )
 
-    def realloc(self):
+    def grow(self):
         old_size = self.frames.shape[1]
         num_envs = self.shape[0]
         new_buffer = self.new(num_envs, int(old_size * 1.5))
@@ -124,11 +124,10 @@ class TarokkEnvs:
     def maybe_grow_traj_buffer(self):
         traj_buf = self.trajectory_buffer
         if traj_buf.indices.max() + 1 >= traj_buf.capacity():
-            self.trajectory_buffer = traj_buf.realloc()
+            self.trajectory_buffer = traj_buf.grow()
 
     def write_obs(self):
-        for idx, state in enumerate(self.states):
-            self.inference_buffers.obs.write_(state, idx)
+        self.inference_buffers.obs.write_(self.states)
 
         self.maybe_grow_traj_buffer()
         traj_buf = self.trajectory_buffer
